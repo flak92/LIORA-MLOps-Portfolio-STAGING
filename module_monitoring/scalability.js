@@ -1,4 +1,4 @@
-/* Scalability tab: how current the crawler's reports are — /store_status/skills_status.json, every file to_crawl.txt
+/* Scalability tab: how current the crawler's reports are — /store_status/skills_status.json, every file to_crawl.md
    lists with the count and the last date of its report's entries. Classic script over the page.js toolkit; the page
    computes nothing but a file's age, the last crawl against the browser's clock. */
 "use strict";
@@ -12,7 +12,7 @@ function formatAgeDays(utcText) {
 }
 
 function renderCrawlActuality(host, status) {
-  const frame = buildFrame("CRAWL ACTUALITY — every file to_crawl.txt lists, and its last report");
+  const frame = buildFrame("CRAWL ACTUALITY — every file to_crawl.md lists, and its last report");
   frame.body.appendChild(buildTable(
     ["file", "last crawl (UTC)", "age (days)", "crawls", "report"],
     status.files.map((file) => [

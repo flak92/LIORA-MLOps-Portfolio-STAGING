@@ -1,8 +1,8 @@
-# One table per vendor, in the menu's order. `active` offers it in the menu; `command` is its CLI, reading the message
-# on stdin and writing the answer on stdout. Each form asked after the vendor — `model`, `effort`, `permissions`, in
-# that order — is a list of options: `label` is shown, `args` are the exact arguments appended to the command line,
-# the first option is preselected, and a form the table lacks is not asked. The CLI is on PATH, logged in with its
-# user's own account (the menu checks the PATH, never the login); no API key is ever written here.
+# One table per vendor, in the vendor list's order. `active` offers it in the TUI; `command` is its CLI, reading the
+# message on stdin and writing the answer on stdout. Each form asked after the vendor — `model`, `effort`,
+# `permissions`, in that order — is a list of options: `label` is shown with its `args`, the exact arguments appended to
+# the command line, the first option is preselected, and a form the table lacks is not asked. The CLI is on PATH, logged
+# in with its user's own account (the TUI checks the PATH, never the login); no API key is ever written here.
 
 [claude]
 active = true

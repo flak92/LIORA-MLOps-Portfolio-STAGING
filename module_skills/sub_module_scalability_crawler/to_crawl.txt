@@ -1,2 +1,0 @@
-AGENTS.md
-module_data/config.py

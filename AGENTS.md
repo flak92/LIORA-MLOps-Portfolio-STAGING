@@ -13,10 +13,11 @@ the working path.) If a change conflicts with this file, the change is wrong.
   layers, no CI, no precautionary guardrails; the only guards are the ones the
   mathematics requires, and a stage proves itself by running. One crawler
   stands beside the chain: the scalability crawler,
-  `module_skills/sub_module_scalability_crawler/`, reads the files a hand lists
-  against the written rules, writes a report a hand reads, and its snapshot;
-  a hand runs it in a terminal, one action per run, and nothing schedules it;
-  it gates nothing, edits no file but its list, commits nothing.
+  `module_skills/sub_module_scalability_crawler/`, reads each file a hand lists
+  against the skills a hand marks for it, writes a report a hand reads, and its
+  snapshot; a hand runs it in a terminal, one action per run, and nothing
+  schedules it; it gates nothing, edits no file but its skill matrix, commits
+  nothing.
 - **Minimalism.** Every line, file, module and dependency has a concrete
   purpose. If its purpose cannot be named, it goes.
 - **Minimum requirements.** Python 3.12.x with `venv` and `pip`; the container
@@ -29,8 +30,9 @@ the working path.) If a change conflicts with this file, the change is wrong.
   forward from names to instruments. `mlflow-skinny` is the one such addition
   and the trial ledger the one such responsibility. By the same reading the
   host admits `gum`, the field's own instrument for a responsibility this
-  project names — a hand's choice in a terminal, the crawler's menu — where
-  the alternative would be a private chooser over curses: a binary of the host,
+  project names — a hand's choice in a terminal and the screens around it, the
+  crawler's text-based user interface (TUI) — where the alternative would be a
+  private chooser and table over curses: a binary of the host,
   no pin of `requirements.txt`. `requirements.txt` declares
   the project's direct dependencies only, one pinned version each.
 - **KISS / YAGNI / DRY / SOLID.** The simplest correct implementation, built
@@ -87,7 +89,7 @@ module_data/         sources → normalised raw 1m → one canonical DuckDB per 
 module_features/     canonical DuckDB → the bars of the register → the feature catalogue, one parquet per timeframe, the per-asset contract and its snapshot
 module_ml/           the catalogue and the canonical path → X, Y → search → model → research simulation
 module_monitoring/   presentation of what the three computational modules measured about themselves, of what record.py measured around every stage and of the dates of the canon's crawler's reports, and the server that serves it
-the root             the Makefile and docker-compose.yml that run the four, record.py, the five stores, one folder each under store/, and the canon: this contract, the name register (module_skills/glossary.md), the cross-cutting skills, the index of every module's own, and the one sub-module that reads listed files against them (module_skills/sub_module_scalability_crawler/)
+the root             the Makefile and docker-compose.yml that run the four, record.py, the five stores, one folder each under store/, and the canon: this contract, the name register (module_skills/glossary.md), the cross-cutting skills, the index of every module's own, and the one sub-module that reads each listed file against the skills a hand marks for it (module_skills/sub_module_scalability_crawler/)
 ```
 
 Each module holds its package, its orientation `README_module_<domain>.md` and
@@ -311,6 +313,7 @@ from its layer's grammar, never invented:
 | statement constants (SQL text) | `<OBJECT>_<KIND>`, kind from the closed list `DDL`, `INSERT`, `SCAN`, `PREDICATE`, `COLUMNS` | `CANONICAL_DDL`, `BAR_INSERT`, `VENUE_SCAN`, `OHLC_INTACT_PREDICATE`, `Y_COLUMNS` | `SOURCE_SWITCHES`, `QUERY_1` |
 | conversion factors | `<UNIT>_PER_<UNIT>` | `MILLISECONDS_PER_MINUTE`, `MINUTES_PER_DAY` | `MS_MIN`, `60_000` inline |
 | module-private helpers | a leading `_` on the name its layer's grammar gives, for a helper no other module may import | `_pnl_block`, `_classification_block` | an `_` name imported by another module |
+| gum calls | `gum_<subcommand>`, the subcommand from gum's own closed list — `table`, `style`, `choose`, `filter` — for the one function that speaks it, and `_gum`, the one private call that runs a prompt and returns its answer, in `module_skills/sub_module_scalability_crawler/tui.py` alone | `gum_table`, `gum_choose`, `_gum` | `render_table`, `show_menu`, `print_block`, `draw_`; a gum command line outside `tui.py` |
 | CLI entry | `main()` — one per stage module, returning the exit code | `main` | `run`, `cli`, `entrypoint` |
 | quantities | `<what>_<unit>` | `fold_start_ms`, `equity_1m`, `returns_15m` | `n_min`, `off` |
 | index arrays | `<population>_rows` | `training_rows`, `window_rows`, `scoring_rows` | `tr`, `wi`, `oi` |
@@ -364,11 +367,11 @@ The boundaries, each with the file that owns it: the Lean tree
 (`download_binance.py`, `download_bybit.py`, and `module_data/config.py` for the venue constants that carry the REST word `KLINE`), xgboost and optuna
 (`module_ml/model.py`, `module_ml/hpo.py`), mlflow (`module_ml/hpo.py`), numpy (every module that computes),
 argparse (`module_data/config.py`, `module_features/config.py`, `module_ml/config.py` — the one parser, twice by extraction —,
-`module_ml/feature_set_promote.py`), DuckDB SQL (every module that queries), the SVG
+`module_ml/feature_set_promote.py`, `module_skills/sub_module_scalability_crawler/crawl.py`, for its `-h`, `--help`), DuckDB SQL (every module that queries), the SVG
 and DOM attributes (every `*.js` of `module_monitoring`, its sub-module included), docker compose (`Makefile`,
 `docker-compose.yml`), tmux (`Makefile`), `urllib` (`module_monitoring/serve.py`,
 `module_monitoring/sub_module_devops/config.py` and both downloaders), a stage's
-command line over `subprocess` (`record.py`), the git command line over `subprocess` (`module_skills/sub_module_scalability_crawler/config.py`, for the root, and `module_skills/sub_module_scalability_crawler/crawl.py`, for the commit a report entry names), each vendor's command line over `subprocess` (`module_skills/sub_module_scalability_crawler/crawl.py`, named in `module_skills/sub_module_scalability_crawler/vendors_for_crawling.toml`), the gum command line over `subprocess` (`module_skills/sub_module_scalability_crawler/crawl.py`, the crawler's menu), `http.server` (`module_monitoring/serve.py` and the panel's own),
+command line over `subprocess` (`record.py`), the git command line over `subprocess` (`module_skills/sub_module_scalability_crawler/config.py`, for the root, and `module_skills/sub_module_scalability_crawler/crawl.py`, for the paths an add offers and the commit a report entry names), each vendor's command line over `subprocess` (`module_skills/sub_module_scalability_crawler/crawl.py`, named in `module_skills/sub_module_scalability_crawler/vendors_for_crawling.toml`), the gum command line over `subprocess` (`module_skills/sub_module_scalability_crawler/tui.py`, the crawler's TUI), the terminal's `NO_COLOR` and `TERM` (`module_skills/sub_module_scalability_crawler/config.py`, plain output), `http.server` (`module_monitoring/serve.py` and the panel's own),
 `socket` and the Docker Engine API over its
 unix socket (`module_monitoring/sub_module_devops/`), and the file listing of the four pipeline stores
 (`record.py`). A
@@ -481,13 +484,13 @@ is wrong.
 | D09 | artifact names and keys move only with the register: every key of every payload has a row in `module_skills/glossary.md`, and a key added, dropped or renamed moves that row in the same commit. The feature layer's contract file `<TICKER>_catalogue.json`, the `catalogue` block in `features_status.json` beside `assets[].row_count_by_timeframe`, the `ticker` key in every row of `data_status.json`, and that snapshot's own measurement set — which `REPORT_dashboard_data_minimalism.md` argues field by field — are each registered there |
 | D10 | determinism is unchanged: the caps, the seed, the pinned orders (`module_skills/skill_determinism.md`) |
 | D11 | parity: the chain on the frozen raw store reproduces the nine BTC artifacts and the three computational snapshots, normalised, byte for byte against the reference list `README.md` § Parity names. A change that reshapes one of them re-bases its line and no other — the gate is then a field-level before/after comparison, every kept field byte-identical, beside the lines held fixed |
-| D12 | zero cloud mechanisms: nothing in the tree reaches a service off this host but two calls — the venues' public endpoints the two downloaders read, and the command line of a vendor of the crawler, chosen in its menu, in its user's own login, outside the chain and gating nothing — and `mlflow` writes only into the ledger `trials_sqlite()` builds in `module_ml/config.py` under `STORE_TRIALS_DIR`, a local file `module_ml/hpo.py` addresses as `sqlite:///`, never a network location; the five pins of `requirements.txt` are the project's, and a sixth moves this line in the commit that adds it |
+| D12 | zero cloud mechanisms: nothing in the tree reaches a service off this host but two calls — the venues' public endpoints the two downloaders read, and the command line of a vendor of the crawler, chosen in its TUI, in its user's own login, outside the chain and gating nothing — and `mlflow` writes only into the ledger `trials_sqlite()` builds in `module_ml/config.py` under `STORE_TRIALS_DIR`, a local file `module_ml/hpo.py` addresses as `sqlite:///`, never a network location; the five pins of `requirements.txt` are the project's, and a sixth moves this line in the commit that adds it |
 | D13 | `features_status.json` is written by `module_features.status` |
 | D14 | every object of `module_skills/glossary.md` § Twice by extraction is marked `# twice by extraction` directly above its own definition — one marker per object, never one above a block of objects — and changed on every side at once |
 | D15 | the tracked remnant of the artifacts store — `<TICKER>_README.md`, `<TICKER>_parameters.json` and, once promoted, `<TICKER>_feature_set.json` — and the four snapshots are tracked, so a fresh clone opens on real numbers |
 | D16 | the fan-out and the detached search run through `docker compose run --rm`; nothing is `exec`'d into a resident |
-| D17 | `skills_status.json` is written by `module_skills.sub_module_scalability_crawler.status` alone, a function of the list and the reports; the reports by `module_skills.sub_module_scalability_crawler.crawl` alone, and `to_crawl.txt` by a hand, in the file or through that module's menu |
-| D18 | the crawler gates nothing: no target of the chain, no service and no merge depends on it; it writes only its list, its reports and its snapshot, and a hand alone runs it |
+| D17 | `skills_status.json` is written by `module_skills.sub_module_scalability_crawler.status` alone, a function of the skill matrix's paths and the reports; the reports by `module_skills.sub_module_scalability_crawler.crawl` alone, and `to_crawl.md` — its entries and its marks — by a hand, in the file or through that module's TUI, its header read off the tree |
+| D18 | the crawler gates nothing: no target of the chain, no service and no merge depends on it; it writes only its skill matrix, its reports and its snapshot, and a hand alone runs it |
 
 ## Skills absent here, described
 
