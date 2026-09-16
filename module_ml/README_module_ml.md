@@ -65,11 +65,21 @@ store/trials/<TICKER>/trials.sqlite3   the trial ledger, written by hpo.py alone
 
 One folder per asset, one file per artifact responsibility; the manifest and
 what each file holds are in `../module_skills/glossary.md` § Artifacts.
-`<TICKER>_README.md`, `<TICKER>_parameters.json` and, once a hand has promoted
-one, `<TICKER>_feature_set.json` are tracked so a folder reads — and rebuilds —
-without a run; the parameters are tuned for the set, so the two travel
-together. The first two are derived, the third is a hand's choice, and none is
-ever hand-edited.
+`<TICKER>_README.md`, `<TICKER>_parameters.json`, once a hand has drafted one
+`<TICKER>_coordinate_search_profile.json` and, once a hand has promoted one,
+`<TICKER>_feature_set.json` and `<TICKER>_barriers.json` are tracked so a folder
+reads — and rebuilds — without a run; the parameters are tuned for the state, so
+they travel together. The first two are derived and are never hand-edited; the
+last three are a hand's decisions, drafted and never derived
+(`../AGENTS.md` § Canonical vocabulary).
+
+## Extending
+
+| what you add | where, and how much | what it changes | the gate |
+|---|---|---|---|
+| a coordinate of the search | one token in `COORDINATE_SEARCH_ROUND_LOOPS` (`config.py`), one module beside `barrier_search.py` with a `FAMILIES` tuple and a `moves()` that answers which moves are legal from a state and what a child of each must build again — `backtest`, `fits` or `labels` — one entry in `LOOP_MODULES` (`coordinate_search.py`), and its grid in the profile | nothing of the state's format, the gate, the ranking, the beam, the resume, the proposals or the terminal: a trial already carries the whole of Θ, and every one of those reads the row rather than the coordinate | a profile that names the new loop searches it; a profile that does not is byte-identical to a run without it; `coordinate_search.py` still names no coordinate of its own |
+| a search objective | one token in `SELECTION_OBJECTIVE` and its fold measure in `SELECTION_FOLD_MEASURE` (`config.py`), then the branch in `state_objective()` and in `strategy.selection_score()` | the gate, the ranking, the threshold rule and the hyper-parameter objective together — which is the point: one constant is one experiment | flipping the token back reproduces the other experiment's trial sequence, its champion and its proposals |
+| a hyper-parameter | one entry in `HYPERPARAMETER_SEARCH_SPACE` (`config.py`), in xgboost's own spelling | the search space, `best_params` and every artifact downstream of a retune | `ml-labels` and the feature parquets byte-identical; the register's `best_params` row lists the space |
 
 ## Design rationale
 

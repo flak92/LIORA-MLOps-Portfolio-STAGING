@@ -185,6 +185,7 @@ run one at a time, or set `COMPOSE_PROJECT_NAME`.
 | a stage of a module | the stage in its module and one `<module>-<stage>` target here — a `fanout` or a `basket` line — and, if a run should record it, its name in `RECORDED_STAGES` | `module_<domain>/`, then here |
 | a timeframe | one token in `HIERARCHY_TIMEFRAMES` of `module_features/config.py`, carried to ML by `<TICKER>_catalogue.json` — a different experiment | `module_features/` |
 | a feature | one record of `FEATURE_CATALOGUE` in the same file (`module_features/README_module_features.md` § Extending) | `module_features/` |
+| a coordinate of the search | one token in `COORDINATE_SEARCH_ROUND_LOOPS`, one module beside `barrier_search.py` answering which moves are legal and what a child must build again, one entry in `LOOP_MODULES`, and its grid in the profile — the state's format, the gate, the ranking, the beam and the terminal are untouched (`module_ml/README_module_ml.md` § Extending) | `module_ml/` |
 | a venue | `download_<venue>.py` beside its sibling and the failover order in `ingest.py` (`module_data/README_module_data.md`) | `module_data/` |
 | a module | a package `module_<domain>/` with a runner service on the one image | `module_<domain>/` beside the others, then here |
 
@@ -209,7 +210,9 @@ file in a store instead (`AGENTS.md` § Architecture shape).
 `AGENTS.md` and `module_skills/` are the canon: the contract, the naming register
 and the rules that cross modules, and the one sub-module that reads each listed file
 against the skills a hand marks for it — `make skills-crawl` opens the crawler's TUI, where a hand chooses one action — crawl, which sends the files it chooses from the skill matrix to an agent after the plan, each with the skills its row marks, and appends each answer to that file's report; add a path with its skills; mark a path's skills; or remove a path — and
-`make skills-status` dates the reports in `store/status/skills_status.json`; it gates nothing (`module_skills/skill_scalability_crawler.md`). A module's own rules live under that module, in
+`make skills-status` dates the reports in `store/status/skills_status.json`; it gates nothing (`module_skills/skill_scalability_crawler.md`). How any of this tree's terminals draws a screen is the canon's too,
+`module_skills/skill_tui_designer.md`, because two sub-modules now draw one: the crawler and
+`make features-coordinate-search-terminal`, the feature layer's instrument over the coordinate search. A module's own rules live under that module, in
 `module_<domain>/skills/`, and the index `module_skills/README.md` links to all of
 them. Each rule is written exactly once, where it is owned, and no document
 restates another (`AGENTS.md` § The default choice).
@@ -229,6 +232,13 @@ Every number here is reproducible. The proof, repeatable on any host:
    the asset README — byte-identical to the reference list;
    `BTC_catalogue.json`, the one new file, identical between two runs;
 4. the three computational snapshots identical after dropping `generated_at_utc` from each.
+
+The files a hand drafts stand outside this proof — `<TICKER>_coordinate_search_profile.json` and, once
+promoted, `<TICKER>_feature_set.json` and `<TICKER>_barriers.json`: no stage derives them, and the one
+program that writes each writes the same bytes for the same decisions. The coordinate search's own result,
+`<TICKER>_coordinate_search.json`, is outside it too, being a hand's stage rather than the chain's; it has a
+proof of its own, which is that two runs of one profile, and a run interrupted and resumed, give the same
+bytes.
 
 Both sides run in containers from the same pins; `SEED`, `nthread=1`,
 `OMP_NUM_THREADS=1`, sequential Optuna and DuckDB's pinned orders are what make
