@@ -6,7 +6,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 
-from . import config, dataset, feature_set_search
+from . import config, coordinate_search, dataset
 
 EQUITY_CURVE_DOWNSAMPLE_INTERVAL_DAYS = 7          # daily equity grid -> weekly points for the sparkline
 
@@ -108,20 +108,26 @@ def feature_set_block(ticker: str, cat: dict) -> dict:
             "columns_by_timeframe": dataset.load_feature_columns(ticker, cat)}
 
 
-def feature_set_search_block(ticker: str, best_params: dict, active_columns_by_timeframe: dict, cat: dict) -> dict | None:
-    """The feature-set search as it last wrote itself, and whether its inputs are still the asset's — a promotion,
-    a retuning or a catalogue change makes a recorded search describe a state that has gone; None while the asset
-    has no search file."""
-    path = config.feature_set_search_json(ticker)
+def coordinate_search_block(ticker: str, best_params: dict, active_columns_by_timeframe: dict,
+                            active_barriers: dict, cat: dict) -> dict | None:
+    """The coordinate search as it last wrote itself, and whether its inputs are still the asset's — a
+    promotion, a retuning, a catalogue change, an edited profile or a flipped selection makes a recorded
+    search describe a state that has gone; None while the asset has no search file, and false rather than
+    an error while it has no profile."""
+    path = config.coordinate_search_json(ticker)
+    profile_path = config.coordinate_search_profile_json(ticker)
     if not path.exists():
         return None
     search = dataset.load_json(path)
     return {
         "trial_count": len(search["trials"]),
-        "pass_count": search["pass_count"],
+        "trial_count_by_loop": dict(sorted(search["trial_count_by_loop"].items())),
+        "round_count": search["round_count"],
         "search_converged": search["search_converged"],
-        "inputs_current": search["inputs"] == dataset.to_json_safe(
-            feature_set_search.build_search_inputs(best_params, active_columns_by_timeframe, cat)),
+        "champion_trial": search["champion_trial"],
+        "inputs_current": profile_path.exists() and search["inputs"] == dataset.to_json_safe(
+            coordinate_search.build_search_inputs(best_params, active_columns_by_timeframe, active_barriers,
+                                                  cat, dataset.load_json(profile_path))),
         "proposals": [proposal_block(proposal) for proposal in search["proposals"]],
     }
 
@@ -150,8 +156,9 @@ def asset_report(ticker: str, cat: dict, hyperparameter_search_result: dict, met
         "feature_columns": list(metrics["feature_columns"]),
         "feature_set": feature_set,
         "validation_importance": validation_importance_block(metrics["validation_importance"]),
-        "feature_set_search": feature_set_search_block(ticker, hyperparameter_search_result["best_params"],
-                                                       feature_set["columns_by_timeframe"], cat),
+        "coordinate_search": coordinate_search_block(ticker, hyperparameter_search_result["best_params"],
+                                                     feature_set["columns_by_timeframe"],
+                                                     dataset.load_barriers(ticker), cat),
         "strategy": strategy_block(strategy),
     }
 
@@ -161,9 +168,11 @@ def file_manifest(ticker: str, cat: dict) -> list[tuple]:
     hierarchy for the catalogue parquets, which the slot standard sorts finest first, as LC_COLLATE=C does."""
     return [
         (config.asset_readme_md(ticker), "this file"),
+        (config.barriers_json(ticker), "the promoted barrier geometry: the two multipliers of a trade, the label's own and the horizon token — a hand's choice; absent, the frozen constants are the asset's"),
         (config.catalogue_json(ticker), "the feature layer's contract: the timeframes and their slots, the warm-up, the columns offered per timeframe and the default set — read once per stage"),
+        (config.coordinate_search_json(ticker), "the coordinate search: every scored state, the beam, the path it took, the champion and the proposals"),
+        (config.coordinate_search_profile_json(ticker), "the search profile: the columns admitted, the state to start from, each coordinate's grid and the loops of a round — drafted by a hand"),
         (config.feature_set_json(ticker), "the promoted feature set: its columns per timeframe, a hand's choice — absent, the default set is the asset's"),
-        (config.feature_set_search_json(ticker), "the feature-set search: every trial, the champion, the proposals"),
         *((config.features_parquet(ticker, cat, timeframe), f"the catalogue on {timeframe} — every definition offered on it, on the decision grid")
           for timeframe in config.timeframes(cat)),
         (config.label_events_parquet(ticker, cat), "Y — triple-barrier outcome and the event prices"),

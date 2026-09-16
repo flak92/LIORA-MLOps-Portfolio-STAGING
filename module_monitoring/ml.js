@@ -194,30 +194,30 @@ function renderSearch(mlStatus) {
     }));
 }
 
-/* the asset's feature set — its source and its columns per timeframe — and what the feature-set search found
+/* the asset's feature set — its source and its columns per timeframe — and what the coordinate search found
    beside it; the delta of the best proposal's mean validation skill against the asset's is page arithmetic, like
    the mean validation skill */
 function renderFeatureSet(mlStatus) {
   const timeframes = FEATURES_STATUS.catalogue.timeframes.map((entry) => entry.timeframe);
   const meanValidationSkill = (asset) => mean(validationFolds(asset).map((fold) => asset.validation[fold].relative_logloss_skill));
   const deltas = mlStatus.assets.map((asset) => {
-    const search = asset.feature_set_search;
+    const search = asset.coordinate_search;
     const bestProposal = search && search.inputs_current && search.proposals.length ? search.proposals[0] : null;
     return bestProposal === null ? null : bestProposal.mean_relative_logloss_skill - meanValidationSkill(asset);
   });
   const widestDelta = Math.max(0, ...deltas.filter((delta) => delta !== null));
   renderTable("cs-feature-set",
-    ["asset", "source", ...timeframes.map((timeframe) => "columns " + timeframe), "mean val skill", "trials", "passes", "converged",
+    ["asset", "source", ...timeframes.map((timeframe) => "columns " + timeframe), "mean val skill", "trials", "rounds", "converged",
      "best proposal &Delta; skill"],
     mlStatus.assets.map((asset, i) => {
-      const search = asset.feature_set_search;
+      const search = asset.coordinate_search;
       const delta = deltas[i];
       const deltaCell = document.createElement("span");
       if (delta !== null) {
         deltaCell.appendChild(buildMeter(widestDelta > 0 ? (100 * Math.max(0, delta)) / widestDelta : 0));
         deltaCell.appendChild(document.createTextNode((delta >= 0 ? "+" : "") + (100 * delta).toFixed(2) + " pp"));
-      } else if (search === null) deltaCell.textContent = "no feature-set search yet";
-      else if (!search.inputs_current) deltaCell.textContent = "the search predates the active set or its parameters";
+      } else if (search === null) deltaCell.textContent = "no coordinate search yet";
+      else if (!search.inputs_current) deltaCell.textContent = "the search predates the asset's state, its profile or its parameters";
       else deltaCell.textContent = "no proposal";
       return [
         buildTickerLink(asset.ticker, selectAsset),
@@ -225,7 +225,7 @@ function renderFeatureSet(mlStatus) {
         ...timeframes.map((timeframe) => formatCount(asset.feature_set.columns_by_timeframe[timeframe].length)),
         formatPercent(meanValidationSkill(asset), 2),
         search === null ? "-" : formatCount(search.trial_count),
-        search === null ? "-" : formatCount(search.pass_count),
+        search === null ? "-" : formatCount(search.round_count),
         search === null ? "-" : (search.search_converged ? "yes" : "no"),
         deltaCell,
       ];

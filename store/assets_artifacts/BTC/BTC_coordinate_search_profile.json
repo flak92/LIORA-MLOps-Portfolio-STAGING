@@ -1,0 +1,50 @@
+{
+ "columns_admitted_by_timeframe": {
+  "15m": [
+   "ema20_minus_ema50_over_atr14",
+   "centered_rsi14",
+   "atr14_over_close",
+   "range_position20",
+   "log_volume_zscore50",
+   "zscore20",
+   "close_minus_sma50_over_atr14"
+  ],
+  "1h": [
+   "ema20_minus_ema50_over_atr14",
+   "centered_rsi14",
+   "atr14_over_close",
+   "range_position20",
+   "log_volume_zscore50",
+   "zscore20",
+   "close_minus_sma50_over_atr14"
+  ],
+  "4h": [
+   "ema20_minus_ema50_over_atr14",
+   "centered_rsi14",
+   "atr14_over_close",
+   "range_position20",
+   "log_volume_zscore50",
+   "zscore20",
+   "close_minus_sma50_over_atr14",
+   "close_minus_sma200_over_atr14"
+  ]
+ },
+ "grid_by_coordinate": {
+  "atr_barrier_multiplier": [
+   2.0
+  ],
+  "label_horizon": [
+   "4h"
+  ],
+  "stop_loss_atr_multiplier": [
+   2.0
+  ],
+  "take_profit_atr_multiplier": [
+   2.0
+  ]
+ },
+ "loops": [
+  "feature_set"
+ ],
+ "start_columns_by_timeframe": null
+}

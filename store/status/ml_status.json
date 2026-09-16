@@ -1,6 +1,94 @@
 {
  "assets": [
   {
+   "coordinate_search": {
+    "champion_trial": 9,
+    "inputs_current": true,
+    "proposals": [
+     {
+      "added_columns_by_timeframe": {
+       "15m": [],
+       "1h": [],
+       "4h": []
+      },
+      "entry_edge_threshold": 0.24,
+      "entry_edge_threshold_constraint_met": true,
+      "mean_relative_logloss_skill": 0.084043,
+      "proposal": 1,
+      "removed_columns_by_timeframe": {
+       "15m": [
+        "ema20_minus_ema50_over_atr14"
+       ],
+       "1h": [],
+       "4h": []
+      },
+      "selection_score_mean_sharpe": -0.534,
+      "trial": 9,
+      "validation": {
+       "fold_2": {
+        "relative_logloss_skill": 0.061105,
+        "sharpe": 0.721,
+        "trade_count": 35
+       },
+       "fold_3": {
+        "relative_logloss_skill": 0.102454,
+        "sharpe": -1.051,
+        "trade_count": 76
+       },
+       "fold_4": {
+        "relative_logloss_skill": 0.08857,
+        "sharpe": -1.274,
+        "trade_count": 111
+       }
+      }
+     },
+     {
+      "added_columns_by_timeframe": {
+       "15m": [],
+       "1h": [],
+       "4h": []
+      },
+      "entry_edge_threshold": 0.21,
+      "entry_edge_threshold_constraint_met": true,
+      "mean_relative_logloss_skill": 0.083855,
+      "proposal": 2,
+      "removed_columns_by_timeframe": {
+       "15m": [
+        "ema20_minus_ema50_over_atr14"
+       ],
+       "1h": [],
+       "4h": [
+        "log_volume_zscore50"
+       ]
+      },
+      "selection_score_mean_sharpe": -0.849,
+      "trial": 44,
+      "validation": {
+       "fold_2": {
+        "relative_logloss_skill": 0.060945,
+        "sharpe": -0.649,
+        "trade_count": 61
+       },
+       "fold_3": {
+        "relative_logloss_skill": 0.102222,
+        "sharpe": -1.082,
+        "trade_count": 100
+       },
+       "fold_4": {
+        "relative_logloss_skill": 0.088397,
+        "sharpe": -0.815,
+        "trade_count": 132
+       }
+      }
+     }
+    ],
+    "round_count": 2,
+    "search_converged": true,
+    "trial_count": 44,
+    "trial_count_by_loop": {
+     "feature_set": 43
+    }
+   },
    "feature_columns": [
     "ema20_minus_ema50_over_atr14_15m",
     "centered_rsi14_15m",
@@ -44,7 +132,6 @@
     },
     "source": "default"
    },
-   "feature_set_search": null,
    "final_holdout": {
     "model_logloss": 0.802334,
     "prior_logloss": 0.86652,
@@ -371,7 +458,7 @@
   }
  ],
  "final_holdout_fold_id": 5,
- "generated_at_utc": "2026-09-14 06:58:49",
+ "generated_at_utc": "2026-09-16 08:25:09",
  "minimum_agreeing_trend_timeframes": 2,
  "research_window": {
   "end_utc": "2026-08-26",

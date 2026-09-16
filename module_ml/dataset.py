@@ -84,6 +84,12 @@ def load_feature_columns(ticker: str, cat: dict) -> dict[str, tuple[str, ...]]:
             for timeframe in config.timeframes(cat)}
 
 
+def barriers_from(coordinates: dict) -> dict:
+    """The barrier geometry a state carries, with its horizon token turned into minutes — the one place a
+    token becomes a number, whether it came from the promoted file or from a state of the search."""
+    return {**coordinates, "horizon_minutes": config.HORIZON_TOKEN_MINUTES[coordinates["label_horizon"]]}
+
+
 def load_barriers(ticker: str) -> dict:
     """The asset's barrier geometry: the promoted file's when it exists, else the frozen constants of
     the experiment. The horizon travels as a duration token and is turned into minutes here and
@@ -91,14 +97,12 @@ def load_barriers(ticker: str) -> dict:
     number."""
     path = config.barriers_json(ticker)
     promoted = load_json(path) if path.exists() else {}
-    label_horizon = promoted.get("label_horizon", config.LABEL_HORIZON)
-    return {
+    return barriers_from({
         "atr_barrier_multiplier": float(promoted.get("atr_barrier_multiplier", config.ATR_BARRIER_MULTIPLIER)),
-        "label_horizon": label_horizon,
-        "horizon_minutes": config.HORIZON_TOKEN_MINUTES[label_horizon],
+        "label_horizon": promoted.get("label_horizon", config.LABEL_HORIZON),
         "take_profit_atr_multiplier": float(promoted.get("take_profit_atr_multiplier", config.ATR_BARRIER_MULTIPLIER)),
         "stop_loss_atr_multiplier": float(promoted.get("stop_loss_atr_multiplier", config.ATR_BARRIER_MULTIPLIER)),
-    }
+    })
 
 
 def build_x(catalogue_values: dict[str, np.ndarray], columns_by_timeframe: dict[str, tuple[str, ...]],

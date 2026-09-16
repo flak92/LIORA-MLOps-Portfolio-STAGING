@@ -113,12 +113,12 @@ What the model sees is the asset's **feature set**: the definitions marked as
 the default set on every timeframe they are offered on — the fifteen columns of
 the frozen experiment, in the order it stacks them — until a promotion writes
 `<TICKER>_feature_set.json`. The set is chosen per asset, on F2–F4 only, by the
-feature-set search below; F5 is evaluated under it and never chooses it.
+coordinate search below; F5 is evaluated under it and never chooses it.
 Warm-up: `WARMUP_TOP_TIMEFRAME_BARS` = 200 bars of the top timeframe —
 decision rows before `2021-02-03 08:00 UTC` are excluded everywhere; no NaN
 survives the warm-up (asserted, in `catalogue.build_catalogue`).
 
-**The feature-set search** (`make ml-feature-set-search`) is stepwise feature
+**The coordinate search** (`make ml-coordinate-search`) is stepwise feature
 selection in the field's sense, run under the asset's frozen `best_params` and
 selecting on the model's own validation objective. A trial is one set: three
 boosters fitted before F2, F3 and F4 as § 6 fits them, scored as § 8 scores
@@ -139,7 +139,7 @@ again. Every forward move raises every fold's skill and every backward move
 shrinks the set at no worse folds, so no
 set recurs and the search ends when a pass accepts nothing: `search_converged`.
 A set scored once is looked up, never fitted twice, and no booster is kept. Every
-scored trial is recorded in `<TICKER>_feature_set_search.json`, rewritten after
+scored trial is recorded in `<TICKER>_coordinate_search.json`, rewritten after
 each, so an interrupted run resumes at its next candidate and a finished run is
 read, not rewritten; its `inputs` — the window with its warm-up and seed,
 `best_params`, the catalogue's columns and the active set — are the one copy of
@@ -151,12 +151,12 @@ against a baseline it no longer has. The
 proposals are the sets a hand may promote: every trial no validation fold
 scores below the active set, by mean skill, ties to the smaller set, and the
 champion the search accepted, move by move, first among them when a pass
-accepted one — at most `FEATURE_SET_PROPOSAL_COUNT`.
+accepted one — at most `COORDINATE_SEARCH_PROPOSAL_COUNT`.
 A set worse on any validation fold is never proposed, so the default
 `PROPOSAL=1` promotes the search's own answer. Their strategy numbers are
 reported beside them and were never selected on — τ is chosen once, by `ml-strategy`,
 after a promotion. The skill is conditional on the frozen `best_params`, which
-were tuned for the active set; a promotion (`make ml-feature-set-promote
+were tuned for the active set; a promotion (`make ml-coordinate-search-promote
 ASSET=<TICKER> PROPOSAL=<n>`, one asset at a time, never fanned out) copies a
 proposal's columns into `<TICKER>_feature_set.json` — the columns and nothing
 else; the commit history is the record of every promotion — and reruns the
@@ -301,7 +301,7 @@ prior_logloss · model_logloss · relative_logloss_skill = 1 − model/prior
 
 `relative_logloss_skill` answers one question — does the model add information beyond knowing
 how often each class occurs? — and is **what both searches select on**: the hyper-parameter
-search minimises the log-loss behind it (§ 7), and the feature-set search accepts a move only
+search minimises the log-loss behind it (§ 7), and the coordinate search accepts a move only
 when it rises, or does not fall, on every validation fold (§ 4). Metrics score the
 supervised subset of a fold
 whose maximum horizon fits inside it — the same t₀-decidable rule that governs
@@ -420,7 +420,7 @@ and the grid read per asset from the feature layer's contract,
 IO: X/Y loading, canonical JSON, its own parquet writer — twice by extraction, identical in `module_features/dataset.py`) ·
 `module_ml/labels.py`, `module_ml/hpo.py`, `module_ml/train.py`, `module_ml/strategy.py`,
 `module_ml/status.py` (CLI stages, `python -m module_ml.<stage> --tickers <TICKERS>`) ·
-`module_ml/feature_set_search.py`, `module_ml/feature_set_promote.py` (the two hand
+`module_ml/coordinate_search.py`, `module_ml/coordinate_search_promote.py` (the two hand
 stages outside the chain, `python -m module_ml.<stage> --tickers <TICKER>`, the
 promotion also `--proposal <n>`).
 Constant convention: **experiment-semantic constants live in
@@ -453,15 +453,15 @@ stage, and most edits do not touch it:
 | what changed | what to rerun |
 |---|---|
 | the canonical series (`make data-ingest`) | everything, from `features-bars` |
-| a feature definition offered but not in the default set | `features-catalogue features-status ml-status`, and `ml-feature-set-search` if its proposals are to stay current |
-| a feature definition entering the default set | `features-catalogue features-status ml-hpo ml-train ml-strategy ml-status`, and `ml-feature-set-search` likewise |
+| a feature definition offered but not in the default set | `features-catalogue features-status ml-status`, and `ml-coordinate-search` if its proposals are to stay current |
+| a feature definition entering the default set | `features-catalogue features-status ml-hpo ml-train ml-strategy ml-status`, and `ml-coordinate-search` likewise |
 | a label or barrier parameter | `ml-labels ml-hpo ml-train ml-strategy ml-status` |
 | a fold bound or the fold ids | `ml-hpo ml-train ml-strategy ml-status` |
 | the research window — both copies, `module_features/config.py` and `module_ml/config.py` | everything, from `features-bars` |
-| the search space or the seed | `ml-hpo ml-train ml-strategy ml-status`, and `ml-feature-set-search` if its proposals are to stay current |
+| the search space or the seed | `ml-hpo ml-train ml-strategy ml-status`, and `ml-coordinate-search` if its proposals are to stay current |
 | a strategy rule, the cost, the threshold grid | `ml-strategy ml-status` |
-| a feature-set search (`make ml-feature-set-search`) | `ml-status` — its proposals reach the page |
-| the promoted feature set (`make ml-feature-set-promote`) | `ml-all` — run by the promotion itself |
+| a coordinate search (`make ml-coordinate-search`) | `ml-status` — its proposals reach the page |
+| the promoted feature set (`make ml-coordinate-search-promote`) | `ml-all` — run by the promotion itself |
 | the monitoring payload | `ml-status` |
 
 This table is the layer's rebuild condition, held in a document a reader applies

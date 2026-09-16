@@ -46,11 +46,11 @@ The chain, and the record it leaves:
 make all-record            # the same chain, every stage measured from outside by record.py into store/run_records/<run_id>/ — the Lifecycle tab
 ```
 
-The feature-set search, outside the chain, one asset at a time:
+The coordinate search, outside the chain, one asset at a time:
 
 ```bash
-make tmux-ml-feature-set-search ASSET=BTC   # the search detached in tmux session feature-set-btc; it outlives the terminal and ends with the search, resumes if rerun
-tmux attach -t feature-set-btc              # watch it; Ctrl-C stops it
+make tmux-ml-coordinate-search ASSET=BTC   # the search detached in tmux session coordinate-search-btc; it outlives the terminal and ends with the search, resumes if rerun
+tmux attach -t coordinate-search-btc        # watch it; Ctrl-C stops it
 make ml-status                              # the finished search's proposals into the snapshot — the page reads nothing else
 ```
 
@@ -58,7 +58,7 @@ Its proposals are the *Feature set* view and the PROPOSALS frame of *ML
 Assets*; a hand promotes one — one asset at a time — and the chain reruns:
 
 ```bash
-make ml-feature-set-promote ASSET=BTC PROPOSAL=1   # copy proposal 1's columns into BTC_feature_set.json, then ml-all for BTC
+make ml-coordinate-search-promote ASSET=BTC PROPOSAL=1   # copy proposal 1 into BTC_feature_set.json and BTC_barriers.json, then ml-all for BTC
 ```
 
 The canon's crawler, outside the chain, by hand in a terminal (`module_skills/skill_scalability_crawler.md`):
@@ -172,8 +172,8 @@ run one at a time, or set `COMPOSE_PROJECT_NAME`.
 | status    | `make data-status`     | DuckDB → stdout + `store/status/data_status.json`           | read-only; per asset, five scans of its one database, the venue scan run once per venue |
 | catalogue | `make features-catalogue` | the bars → one feature parquet per timeframe and `<TICKER>_catalogue.json`, the contract the ML layer reads | deterministic; the existing columns byte-identical after an extension |
 | features status | `make features-status` | the parquets → `store/status/features_status.json` | read-only; the catalogue's facts and each asset's row counts |
-| feature-set search | `make ml-feature-set-search` | the catalogue parquets, Y and the frozen parameters → `<TICKER>_feature_set_search.json` | stepwise on the validation folds only, selected on the model's validation skill fold by fold; resumes; promotes nothing; `make ml-status` after it puts the proposals on the page; its detached twin `make tmux-ml-feature-set-search ASSET=<TICKER>` outlives the terminal and ends with the search |
-| promotion | `make ml-feature-set-promote ASSET=<TICKER> PROPOSAL=<n>` | one proposal's columns → `<TICKER>_feature_set.json`, then `ml-all` for that asset | a hand's choice, one asset at a time; the same proposal twice changes nothing; the commit history is the record |
+| coordinate search | `make ml-coordinate-search` | the profile a hand drafted, the catalogue parquets, Y and the frozen parameters → `<TICKER>_coordinate_search.json` | a beam over the coordinates of a state, on the validation folds only, a move kept only where every fold agrees; resumes; promotes nothing; `make ml-status` after it puts the proposals on the page; its detached twin `make tmux-ml-coordinate-search ASSET=<TICKER>` outlives the terminal and ends with the search |
+| promotion | `make ml-coordinate-search-promote ASSET=<TICKER> PROPOSAL=<n>` | one proposal's columns → `<TICKER>_feature_set.json` and its barrier geometry → `<TICKER>_barriers.json`, then `ml-all` for that asset | a hand's choice, one asset at a time; the same proposal twice changes nothing; the commit history is the record |
 | lifecycle | `make all-record` | one recorded run of the whole chain → `store/run_records/<run_id>/` | one record for the whole basket; every stage measured from outside by `record.py` — its time, its exit code and what it wrote to the four pipeline stores |
 | dashboard | `make on`              | snapshots → six-tab page on `127.0.0.1:<port>`, the address `make on` prints, plus the DevOps panel behind its jump, served by `module_monitoring/serve.py` in the `dashboard` container with the run, snapshot and `/devops` routes | no external resources |
 

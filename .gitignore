@@ -8,6 +8,8 @@ store/assets_artifacts/**
 !store/assets_artifacts/*/*_parameters.json
 !store/assets_artifacts/*/*_README.md
 !store/assets_artifacts/*/*_feature_set.json
+!store/assets_artifacts/*/*_barriers.json
+!store/assets_artifacts/*/*_coordinate_search_profile.json
 
 # agent and editor files: never part of this repository
 CLAUDE.local.md

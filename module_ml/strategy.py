@@ -261,7 +261,7 @@ def equity_curve(equity_1m: np.ndarray) -> dict:
 def entry_edge_threshold_selection(simulation_inputs: dict) -> dict:
     """The entry edge threshold chosen on the validation folds — the grid point maximising the mean fold Sharpe
     among those clearing the trade floor, ties to the smaller threshold, the grid floor when none clears it — with
-    the fold results at that point. The one selection the stage and the feature-set search both run."""
+    the fold results at that point. The one selection the stage and the coordinate search both run."""
     validation_rows = {fold_id: signals_for_fold(simulation_inputs, fold_id)
                        for fold_id in config.VALIDATION_FOLD_IDS}
     validation_bounds = {fold_id: validation.fold_bounds(fold_id)

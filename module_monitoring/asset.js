@@ -154,7 +154,7 @@ function buildFeatureSetFrame(asset, mlStatus) {
   return frame.frame;
 }
 
-/* what the feature-set search found: every proposal with what it adds and removes against the active set, the
+/* what the coordinate search found: every proposal with what it adds and removes against the active state, the
    validation skill it was chosen on and what the strategy would do with it; the delta against the asset's mean
    validation skill is page arithmetic, like the mean validation skill itself */
 function formatColumnChanges(proposal, timeframes) {
@@ -165,25 +165,25 @@ function formatColumnChanges(proposal, timeframes) {
 }
 
 function buildProposalsFrame(asset, mlStatus) {
-  const frame = buildFrame("PROPOSALS — feature sets the search found on the validation folds; none is promoted by itself");
-  const search = asset.feature_set_search;
+  const frame = buildFrame("PROPOSALS — the states the coordinate search found on the validation folds; none is promoted by itself");
+  const search = asset.coordinate_search;
   if (search === null) {
-    frame.body.appendChild(buildFootnote("no feature-set search yet — run `make ml-feature-set-search ASSET=" + asset.ticker + "`"));
+    frame.body.appendChild(buildFootnote("no coordinate search yet — run `make ml-coordinate-search ASSET=" + asset.ticker + "`"));
     return frame.frame;
   }
   /* a recorded search conditioned on another set or other parameters compares against a baseline that has gone,
      so the frame states that and shows nothing rather than a delta against the wrong set */
   if (!search.inputs_current) {
-    frame.body.appendChild(buildFootnote("the search predates the active set or its parameters — run "
-      + "`make ml-feature-set-search ASSET=" + asset.ticker + "`"));
+    frame.body.appendChild(buildFootnote("the search predates the asset's state, its profile or its parameters — run "
+      + "`make ml-coordinate-search ASSET=" + asset.ticker + "`"));
     return frame.frame;
   }
   const timeframes = FEATURES_STATUS.catalogue.timeframes.map((entry) => entry.timeframe);
   const folds = validationFolds(asset);
   const meanValidationSkill = mean(folds.map((fold) => asset.validation[fold].relative_logloss_skill));
   frame.body.appendChild(buildKeyValueBox([
-    ["feature-set search", search.trial_count + " trials in " + search.pass_count + " passes · " + (search.search_converged ? "converged" : "not converged")
-      + " · the active set's mean validation skill " + formatPercent(meanValidationSkill, 2)],
+    ["coordinate search", search.trial_count + " trials in " + search.round_count + " rounds · " + (search.search_converged ? "converged" : "not converged")
+      + " · the active state's mean validation skill " + formatPercent(meanValidationSkill, 2)],
   ]));
   frame.body.appendChild(buildTable(
     ["#", "trial", "columns added / removed", ...folds.map((fold) => "skill F" + fold.split("_")[1]), "mean skill",
@@ -202,7 +202,7 @@ function buildProposalsFrame(asset, mlStatus) {
         formatNumber(proposal.selection_score_mean_sharpe, 2),
       ];
     })));
-  frame.body.appendChild(buildFootnote("every proposal is a trial no validation fold scores below the active set, by "
+  frame.body.appendChild(buildFootnote("every proposal is a trial no validation fold scores below the state the search started from, by "
     + "mean skill, under the asset's frozen parameters; when a pass accepted a set, that set stands first. The Sharpe "
     + "and trade columns say what the strategy would do with each at its own entry edge threshold — τ marked ! when "
     + "its trade floor was not met — and were never selected on. Nothing here touched the final holdout."));

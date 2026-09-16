@@ -38,10 +38,10 @@ JOBS ?= $(shell c=$$(nproc 2>/dev/null || echo 1); \
                 g=$$(awk '/MemAvailable/ {printf "%d", $$2 / 1048576}' /proc/meminfo 2>/dev/null); \
                 if [ -n "$$g" ] && [ "$$g" -lt "$$c" ]; then c=$$g; fi; \
                 if [ "$$c" -lt 1 ]; then echo 1; else echo $$c; fi)
-# the proposal a promotion copies, by its rank in the feature-set search result
+# the proposal a promotion copies, by its rank in the coordinate search result
 PROPOSAL ?= 1
-# the tmux session the detached feature-set search runs in: one per asset, named for it
-FEATURE_SET_SEARCH_SESSION = feature-set-$(shell echo $(ASSET) | tr A-Z a-z)
+# the tmux session the detached coordinate search runs in: one per asset, named for it
+COORDINATE_SEARCH_SESSION = coordinate-search-$(shell echo $(ASSET) | tr A-Z a-z)
 RUN_ID = $(shell date -u +%Y%m%dT%H%M%SZ)_$(shell git rev-parse --short HEAD)
 # a stage runs in a one-off container of its module's runner service — a role, not an image; nothing resident is assumed
 # for compute. `env $(COMPOSE_ENV) docker compose`, because $(COMPOSE) cannot cross xargs
@@ -66,7 +66,7 @@ build: | $(STORES) ## the image every service runs
 # compose target joins the line below
 $(STORES):
 	@mkdir -p $@
-data-download data-ingest data-status features-bars features-catalogue features-status ml-labels ml-hpo ml-train ml-strategy ml-status ml-feature-set-search ml-feature-set-promote on all-record: | $(STORES)
+data-download data-ingest data-status features-bars features-catalogue features-status ml-labels ml-hpo ml-train ml-strategy ml-status ml-coordinate-search ml-coordinate-search-promote on all-record: | $(STORES)
 
 data-download:   ## raw 1m candles of both venues into store/raw_1m — one process per venue, a venue's rate limit being per process
 	$(call basket,data,module_data.download_binance)
@@ -99,20 +99,20 @@ ml-status:       ## ml_status.json -> store/status, and <TICKER>_README.md
 	$(call basket,ml,module_ml.status)
 ml-all:          ## the ML chain in order
 	$(MAKE) ml-labels ml-hpo ml-train ml-strategy ml-status
-ml-feature-set-search: ## stepwise feature-set search on the validation folds under the asset's frozen parameters; resumes; promotes nothing
-	$(call fanout,ml,module_ml.feature_set_search,$(JOBS))
+ml-coordinate-search: ## coordinate search on the validation folds under the asset's profile and frozen parameters; resumes; promotes nothing
+	$(call fanout,ml,module_ml.coordinate_search,$(JOBS))
 # a hand's decision for one asset, never fanned out: ASSET= is required
-ml-feature-set-promote: ## copy proposal PROPOSAL=<n> (default 1) of one asset into <TICKER>_feature_set.json, then rerun its ML chain either way; ASSET= is required
+ml-coordinate-search-promote: ## copy proposal PROPOSAL=<n> (default 1) of one asset into <TICKER>_feature_set.json and <TICKER>_barriers.json, then rerun its ML chain either way; ASSET= is required
 	$(if $(ASSET),,$(error ASSET=<TICKER> is required))
-	$(run) ml python -m module_ml.feature_set_promote --tickers $(ASSET) --proposal $(PROPOSAL)
+	$(run) ml python -m module_ml.coordinate_search_promote --tickers $(ASSET) --proposal $(PROPOSAL)
 	$(MAKE) ml-all ASSET=$(ASSET)
 # the detached twin: the same search in a tmux session that outlives the terminal, started in this checkout, one asset per
-# session; the session ends with the search — `<TICKER>_feature_set_search.json` and the page are the record.
+# session; the session ends with the search — `<TICKER>_coordinate_search.json` and the page are the record.
 # A plain make, not $(MAKE): the session is a new process of the tmux server, and a recipe line carrying $(MAKE) runs
 # even under -n
-tmux-ml-feature-set-search: ## the search detached in tmux session feature-set-<ticker>, alive after the terminal closes and gone with the search; tmux attach -t feature-set-<ticker> to watch, Ctrl-C stops, a rerun after it ends resumes; ASSET= is required
+tmux-ml-coordinate-search: ## the search detached in tmux session coordinate-search-<ticker>, alive after the terminal closes and gone with the search; tmux attach -t coordinate-search-<ticker> to watch, Ctrl-C stops, a rerun after it ends resumes; ASSET= is required
 	$(if $(ASSET),,$(error ASSET=<TICKER> is required))
-	@tmux has-session -t $(FEATURE_SET_SEARCH_SESSION) 2>/dev/null && echo '$(FEATURE_SET_SEARCH_SESSION) is already running — tmux attach -t $(FEATURE_SET_SEARCH_SESSION)' || tmux new-session -d -s $(FEATURE_SET_SEARCH_SESSION) -c $(CURDIR) 'make ml-feature-set-search ASSET=$(ASSET)'
+	@tmux has-session -t $(COORDINATE_SEARCH_SESSION) 2>/dev/null && echo '$(COORDINATE_SEARCH_SESSION) is already running — tmux attach -t $(COORDINATE_SEARCH_SESSION)' || tmux new-session -d -s $(COORDINATE_SEARCH_SESSION) -c $(CURDIR) 'make ml-coordinate-search ASSET=$(ASSET)'
 
 # the canon's crawler and its text-based user interface (TUI), on the host: python3 and gum, git only for the root, the
 # paths an add offers and the commit a report entry names, the canon having no runner and no dependency — it gates

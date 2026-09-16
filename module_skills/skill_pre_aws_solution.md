@@ -76,7 +76,7 @@ today:
 | STORAGE | where state lives, and the descriptors that name it | the `store/<content>/` folders; every path descriptor of a `config.py` |
 | FEATURE | the catalogue, a pure function of the canonical series | `module_features/catalogue.py`, `module_features/indicators.py` |
 | LABEL | Y, resolved on the canonical path | `module_ml/labels.py` |
-| MODEL | the two searches, the fit, the folds, the shared IO, and the hand's copy that fixes an asset's columns | `module_ml/hpo.py`, `module_ml/feature_set_search.py`, `module_ml/feature_set_promote.py`, `module_ml/train.py`, `module_ml/model.py`, `module_ml/validation.py`, `module_ml/dataset.py` |
+| MODEL | the two searches, the fit, the folds, the shared IO, and the hand's copy that fixes an asset's columns | `module_ml/hpo.py`, `module_ml/coordinate_search.py`, `module_ml/coordinate_search_promote.py`, `module_ml/train.py`, `module_ml/model.py`, `module_ml/validation.py`, `module_ml/dataset.py` |
 | STRATEGY | the research evaluation of the predictions | `module_ml/strategy.py` |
 | ORCHESTRATION | ordering and launching the stages — the wall time between two stages is nobody's number, not the record's | the Makefile |
 | MONITORING | measuring the runtime, dating the crawler's reports, and presenting what was measured | `module_data/status.py`, `module_features/status.py`, `module_ml/status.py`, `module_skills/sub_module_scalability_crawler/status.py`, `module_monitoring/serve.py`, `record.py`, the page scripts |
@@ -361,8 +361,8 @@ the pipeline passes today:
 | `ml-train` | TrainModel |
 | `ml-strategy` | EvaluateStrategy |
 | `data-status`, `features-status`, `ml-status` | PublishStatus |
-| `ml-feature-set-search` | SearchFeatureSet — started by a hand, outside the daily order; the same task run, detached locally in a tmux session |
-| `ml-feature-set-promote` | PromoteFeatureSet — started by a hand for one asset, outside the daily order; the states of `ml-all` follow it |
+| `ml-coordinate-search` | SearchCoordinates — started by a hand, outside the daily order; the same task run, detached locally in a tmux session |
+| `ml-coordinate-search-promote` | PromoteSearchResult — started by a hand for one asset, outside the daily order; the states of `ml-all` follow it |
 
 A stage that needed two names, or a name with "and" in it, would be too wide.
 Read forward the visible list is that machine's definition: `all:`, `data-all:`, `features-all:`

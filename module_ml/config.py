@@ -142,10 +142,23 @@ MINUTES_PER_YEAR = 365 * 1440                   # the same 24/7 year, for a path
 # timeframes whose trend sign must agree with the side before an entry is taken
 MINIMUM_AGREEING_TREND_TIMEFRAMES = 2
 
-# ---- the feature-set search: selected on the model's validation skill, fold by fold; the final holdout never chooses
-FEATURE_SET_PROPOSAL_COUNT = 3
-FEATURE_SET_SEARCH_MOVE_FORWARD = "forward"
-FEATURE_SET_SEARCH_MOVE_BACKWARD = "backward"
+# ---- the coordinate search: a beam over the coordinates of a state, fold by fold; the final holdout never chooses
+COORDINATE_SEARCH_PROPOSAL_COUNT = 3
+# the direction a move is compared in: forward must be better on every fold, backward only no worse —
+# the two words a trial records, and the two the gate reads
+COORDINATE_SEARCH_MOVE_FORWARD = "forward"
+COORDINATE_SEARCH_MOVE_BACKWARD = "backward"
+# the loops of a round, in the frozen order a round applies them; a profile names the subset it searches
+COORDINATE_SEARCH_LOOP_FEATURE_SET = "feature_set"
+COORDINATE_SEARCH_ROUND_LOOPS = (COORDINATE_SEARCH_LOOP_FEATURE_SET,)
+# the quantity every selection reads — the gate per fold, the ranking, the threshold's own choice and,
+# once the search tunes them, the hyper-parameters: one token, so one experiment moves all of them
+SELECTION_OBJECTIVE_RELATIVE_LOGLOSS_SKILL = "relative_logloss_skill"
+SELECTION_OBJECTIVE = SELECTION_OBJECTIVE_RELATIVE_LOGLOSS_SKILL
+COORDINATE_SEARCH_BEAM_WIDTH = 1          # the branches a pass keeps; 1 is one champion, move by move
+# the barrier geometry a promotion writes, in the order a state keys it
+BARRIER_COORDINATE_NAMES = ("atr_barrier_multiplier", "label_horizon",
+                            "take_profit_atr_multiplier", "stop_loss_atr_multiplier")
 
 # ---- the feature layer's contract, per asset: <TICKER>_catalogue.json, written by module_features.catalogue and read once
 # per stage by dataset.load_catalogue — carried as `cat` (xy["catalogue"]) into every helper below; a helper reads the
@@ -220,8 +233,15 @@ def strategy_evaluation_json(ticker):
     return artifact_dir(ticker) / f"{ticker}_strategy_evaluation.json"
 
 
-def feature_set_search_json(ticker):
-    return artifact_dir(ticker) / f"{ticker}_feature_set_search.json"
+def coordinate_search_json(ticker):
+    """Every scored state of the search, its beam, its path and its proposals — the stage's own state."""
+    return artifact_dir(ticker) / f"{ticker}_coordinate_search.json"
+
+
+def coordinate_search_profile_json(ticker):
+    """What a hand asks the search to look at: the columns admitted, the state to start from, the grid of
+    each coordinate and the loops of a round. Drafted, never derived."""
+    return artifact_dir(ticker) / f"{ticker}_coordinate_search_profile.json"
 
 
 def trials_sqlite(ticker):

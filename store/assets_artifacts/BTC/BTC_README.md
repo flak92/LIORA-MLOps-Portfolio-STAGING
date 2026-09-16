@@ -7,9 +7,11 @@ Research window 2021-01-01 → 2026-08-26, seed 42. One directory per ticker, on
 | file | holds | size |
 | --- | --- | --- |
 | `BTC_README.md` | this file | — |
+| `BTC_barriers.json` | the promoted barrier geometry: the two multipliers of a trade, the label's own and the horizon token — a hand's choice; absent, the frozen constants are the asset's | — |
 | `BTC_catalogue.json` | the feature layer's contract: the timeframes and their slots, the warm-up, the columns offered per timeframe and the default set — read once per stage | 2 KB |
+| `BTC_coordinate_search.json` | the coordinate search: every scored state, the beam, the path it took, the champion and the proposals | 77 KB |
+| `BTC_coordinate_search_profile.json` | the search profile: the columns admitted, the state to start from, each coordinate's grid and the loops of a round — drafted by a hand | 918 B |
 | `BTC_feature_set.json` | the promoted feature set: its columns per timeframe, a hand's choice — absent, the default set is the asset's | — |
-| `BTC_feature_set_search.json` | the feature-set search: every trial, the champion, the proposals | — |
 | `BTC_features_ss-15-hh-dd-MM.parquet` | the catalogue on 15m — every definition offered on it, on the decision grid | 10,699 KB |
 | `BTC_features_ss-mm-01-dd-MM.parquet` | the catalogue on 1h — every definition offered on it, on the decision grid | 2,950 KB |
 | `BTC_features_ss-mm-04-dd-MM.parquet` | the catalogue on 4h — every definition offered on it, on the decision grid | 1,667 KB |
