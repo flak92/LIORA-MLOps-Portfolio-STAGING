@@ -125,7 +125,7 @@ def _state_rows(ticker: str, profile: dict | None, search: dict | None,
              {"parameter": "trials by loop",
               "value": " ".join(f"{loop} {count}" for loop, count in sorted(by_loop.items())) or "—"},
              {"parameter": "converged", "value": "yes" if search["search_converged"] else "no"},
-             {"parameter": "champion trial", "value": search["champion_trial"] or "—"},
+             {"parameter": "champion trial", "value": search["champion_trial_index"] or "—"},
              {"parameter": "proposals", "value": len(search["proposals"])}]
     return rows
 
@@ -140,7 +140,7 @@ def _path_block_cells(block: dict) -> dict:
 
 
 def _proposal_rows(search: dict, trials: list[dict]) -> list[dict]:
-    return [{"#": proposal["proposal"], "trial": proposal["trial"],
+    return [{"#": proposal["proposal"], "trial": proposal["trial_index"],
              "coordinates moved": _moved(proposal, trials),
              **_path_block_cells(proposal["validation_path"])}
             for proposal in search["proposals"]]
@@ -148,7 +148,7 @@ def _proposal_rows(search: dict, trials: list[dict]) -> list[dict]:
 
 def _path_rows(search: dict) -> list[dict]:
     return [{"#": number, "round": entry["round"], "loop": entry["loop"], "family": entry["family"],
-             "trial": entry["trial"], **_path_block_cells(entry["validation_path"])}
+             "trial": entry["trial_index"], **_path_block_cells(entry["validation_path"])}
             for number, entry in enumerate(search["path"], start=1)]
 
 
@@ -187,13 +187,13 @@ def _write_search_profile(ticker: str, catalogue: dict, profile: dict | None, se
         chosen["columns to admit"] = f"{len(admitted)} of {len(column_rows)}"
 
         start_rows = [{"start state": "the asset's own", "value": "null"}]
-        if search is not None and search["champion_trial"]:
+        if search is not None and search["champion_trial_index"]:
             start_rows.append({"start state": "the recorded search's champion", "value": "champion"})
         answer = _step_answer(DRAFT_STEPS, chosen, start_rows, "value")
         if answer in (None, ""):
             return _cancelled_exit_code()
         start_columns = (None if answer == "null" else
-                         _trial_rows(ticker)[search["champion_trial"] - 1]["columns_by_timeframe"])
+                         _trial_rows(ticker)[search["champion_trial_index"] - 1]["columns_by_timeframe"])
         chosen["start state"] = next(row["start state"] for row in start_rows if row["value"] == answer)
 
         coordinate_rows = [{"coordinate": name, "grid": ", ".join(str(point) for point in grid),
@@ -347,7 +347,7 @@ def _write_promoted_proposal(ticker: str, profile: dict | None, search: dict | N
     tui.gum_table(("parameter", "value"),
                   [{"parameter": "asset", "value": ticker},
                    {"parameter": "proposal", "value": f"{answer} of {len(search['proposals'])}"},
-                   {"parameter": "trial", "value": proposal["trial"]},
+                   {"parameter": "trial", "value": proposal["trial_index"]},
                    {"parameter": "coordinates moved", "value": _moved(proposal, trials)}])
     print(f"command         {shlex.join(('make', config.PROMOTE_TARGET, f'ASSET={ticker}', f'PROPOSAL={answer}'))}")
     print()

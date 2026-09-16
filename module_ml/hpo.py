@@ -5,16 +5,21 @@ search selects on, so the parameters are tuned on it. The final holdout is never
 The stage is a function of X, Y and the frozen constants alone: it draws no point to start from, so the
 parameters file it writes is a function of the raw store and this code, never of what it wrote last.
 
-Inside a coordinate search the study is also a coordinate, and there a point to start from is proper: one
-candidate, warm-started at the point the state already holds — an input the search records in `inputs` — so
-it can never answer worse than where it began, and pruned by two explicit gates.
-After each fold a trial reports what it reached, then stops if the best that fold could still do — over the
-whole threshold grid, among the points clearing the trade floor — cannot beat the champion's own on that
-fold, on the Calmar ratio or on the growth rate. The bound is an upper bound, so a gate that prunes on it
-can never discard a trial the search would have kept; and because the bound is a fold's own, the gate fires
-on the first fold that settles the question. Optuna's own median pruner is not one of these gates and is
-not used: it compares a trial's best value over all its steps with the median of other trials at one step,
-and with folds as calendar years that comparison is not of like with like.
+Inside a coordinate search the study is also a coordinate: one candidate per beam member, drawn on that
+member's own X and Y, and pruned by one explicit gate. It cannot answer worse than the member it ran on,
+because a candidate has to beat it — the guarantee is the gate's, not a point the study was handed.
+
+That gate is the state gate's own condition, read one fold at a time: after each fold, the thresholds at
+which **every** fold so far clears the trade floor and beats the champion's Calmar. The set only shrinks as
+folds are added, and the child the search would keep needs one threshold inside it over all three, so a trial
+whose set has gone empty cannot produce one and stops. Nothing admissible is discarded by it.
+
+What stood here before was a bound — the best a fold could reach over the whole grid — on two measures, read
+fold by fold and never jointly. Two bounds, each true of some threshold, say nothing about one threshold
+admissible on every fold, and one threshold is what the state gate needs; this set is that quantity. Optuna's
+own median pruner is not a gate here either: it
+compares a trial's best value over all its steps with the median of other trials at one step, and with folds
+as calendar years that comparison is not of like with like.
 
 Every point the search drew is left in the asset's trial ledger, where the parameters file keeps only the
 one it chose. The ledger is JSON Lines appended a line at a time — the technique the coordinate search's own
@@ -31,7 +36,7 @@ from . import config, dataset, model, strategy, train, validation
 def log_trials(ticker: str, study: optuna.Study, origin: str, round_number: int | None) -> None:
     """Every point a study drew, one line each, appended to the asset's ledger and never rewritten.
 
-    A study's place in the ledger is read off the ledger: every study opens with its own trial 0, so the
+    A study's place in the ledger is read off the ledger: every study opens with its own trial 1, so the
     lines carrying that number are the studies before this one. One read per study and no state kept outside
     the file, which is why two fanned-out processes need nothing from each other — they write different
     assets' files.
@@ -40,7 +45,7 @@ def log_trials(ticker: str, study: optuna.Study, origin: str, round_number: int 
     over an empty store therefore leave the same bytes, and the ledger stops being a note about the search
     and becomes a thing the search can be proved against. The ledger only grows; a hand clears it."""
     ledger = config.hyperparameter_search_trials_jsonl(ticker)
-    search_index = 1 + sum(row["trial_number"] == 0 for row in dataset.load_jsonl(ledger)) if ledger.exists() else 1
+    search_index = 1 + sum(row["trial_index"] == 1 for row in dataset.load_jsonl(ledger)) if ledger.exists() else 1
     for trial in study.trials:
         dataset.append_jsonl(ledger, trial_row(trial, origin, round_number, search_index))
 
@@ -51,31 +56,43 @@ OBJECTIVE_KEY = "best_cagr_validation_path"
 TRIAL_METRIC_KEY = "cagr_validation_path"
 
 
-def fold_pruning_bound(sweep: dict[float, dict], measure: str) -> float:
-    """The highest one fold can reach on a measure over the whole threshold grid, among the points clearing
-    the trade floor — an upper bound on what a trial can still realise there, and -inf when no threshold
-    clears it, which is a fold on which the trial has no admissible strategy at all."""
-    return max((result[measure] for result in sweep.values()
-                if result["trade_count"] >= config.MINIMUM_TRADES_PER_VALIDATION_FOLD),
-               default=-np.inf)
+def admissible_thresholds(sweeps: dict[int, dict], champion_by_fold: dict[int, dict] | None,
+                          fold_ids: tuple[int, ...]) -> list[float]:
+    """The thresholds at which every fold evaluated so far clears the trade floor and — when there is a
+    champion to beat — beats its Calmar there. One list, shrinking as folds are added.
+
+    This is the state gate's own condition read one fold at a time. That gate keeps a child only where a
+    **single** threshold makes every validation fold better than the parent, so its threshold must lie in
+    this set over all three folds; a trial whose set has gone empty cannot produce one however the remaining
+    folds land, because adding a fold can only remove thresholds. Nothing admissible is discarded.
+
+    What it replaces was a bound, not a condition: the best a fold could reach on a measure over the whole
+    grid, fold by fold and never jointly. Two bounds, each true of some threshold, say nothing about one
+    threshold admissible on every fold — and one threshold is what the state gate needs. This set is that
+    quantity, so the gate stops a trial exactly when the trial can no longer produce a child the search would
+    keep, and stops it at the first fold that settles it rather than the first fold on which some bound
+    happens to fail."""
+    return [threshold for threshold in config.ENTRY_EDGE_THRESHOLD_GRID
+            if all(sweeps[fold_id][threshold]["trade_count"] >= config.MINIMUM_TRADES_PER_VALIDATION_FOLD
+                   and (champion_by_fold is None
+                        or sweeps[fold_id][threshold]["calmar"] > champion_by_fold[fold_id]["calmar"])
+                   for fold_id in fold_ids)]
 
 
-def sweep_value(sweeps: dict[int, dict]) -> float:
-    """A trial's own value: the chained path's growth rate at the threshold the one selection rule would
-    pick over these folds.
+def sweep_selection(sweeps: dict[int, dict]) -> tuple[float, float]:
+    """The threshold the one selection rule would pick over these folds, and the chained path's growth rate
+    there — the trial's own value. Ties keep the smaller threshold, as the rule takes them.
 
-    A trial where no point of the grid clears the trade floor in every fold has no value, and is pruned
-    rather than scored at the grid floor. The floor was the rule's fallback, and it is a fallback for a
-    *report* — a number to show when nothing qualified. Handing it to a sampler as a value let a trial that
-    never qualified compete, and win, on the numbers of a threshold nothing qualified for."""
-    cleared = [threshold for threshold in config.ENTRY_EDGE_THRESHOLD_GRID
-               if all(sweeps[fold_id][threshold]["trade_count"] >= config.MINIMUM_TRADES_PER_VALIDATION_FOLD
-                      for fold_id in config.VALIDATION_FOLD_IDS)]
-    if not cleared:
-        raise optuna.TrialPruned()
-    return max(strategy.validation_path_cagr(
-        {fold_id: sweeps[fold_id][threshold]["final_equity"] for fold_id in config.VALIDATION_FOLD_IDS})
-        for threshold in cleared)
+    The rule reads the trade floor and nothing else, never the champion: a trial's value is what it is worth,
+    not what it is worth against something. A trial with no threshold clearing the floor in every fold never
+    reaches here — the fold loop stops it — because the grid floor it would otherwise be scored at is a
+    fallback for a *report*, a number to show when nothing qualified, and handing it to a sampler let a trial
+    that never qualified compete, and win, on the numbers of a threshold nothing qualified for."""
+    cleared = admissible_thresholds(sweeps, None, config.VALIDATION_FOLD_IDS)
+    value, negated = max((strategy.validation_path_cagr(
+        {fold_id: sweeps[fold_id][threshold]["final_equity"] for fold_id in config.VALIDATION_FOLD_IDS}),
+        -threshold) for threshold in cleared)
+    return -negated, value
 
 
 def build_objective(xy: dict[str, np.ndarray], bars_1m: dict[str, np.ndarray],
@@ -90,7 +107,8 @@ def build_objective(xy: dict[str, np.ndarray], bars_1m: dict[str, np.ndarray],
     def objective(trial: optuna.Trial) -> float:
         params = model.suggest_params(trial)
         prediction_records, sweeps = [], {}
-        for step, fold_id in enumerate(config.VALIDATION_FOLD_IDS):
+        floor_count_by_fold, admissible_count_by_fold = [], []
+        for fold_id in config.VALIDATION_FOLD_IDS:
             _, _, rows, _ = train.fold_evaluation(xy, y_cls, params, fold_id)
             prediction_records.extend(rows)
             simulation_inputs = strategy.build_simulation_inputs(
@@ -98,27 +116,30 @@ def build_objective(xy: dict[str, np.ndarray], bars_1m: dict[str, np.ndarray],
             sweeps[fold_id] = strategy.results_by_threshold(
                 simulation_inputs, strategy.signals_for_fold(simulation_inputs, fold_id),
                 *validation.fold_bounds(fold_id))
-            # report first, so a pruned trial still has a value the ledger can carry
-            trial.report(fold_pruning_bound(sweeps[fold_id], "cagr"), step=step)
+            evaluated = config.VALIDATION_FOLD_IDS[:len(sweeps)]
+            # two counts, two questions. The floor is the trial's own admissibility — a strategy at all —
+            # and is asked in both modes. Admissibility against a champion is the state gate's question and
+            # exists only where there is a champion; one key holding both would answer a different question
+            # depending on who ran the study, which is the kind of key a register cannot define
+            floor = admissible_thresholds(sweeps, None, evaluated)
+            floor_count_by_fold.append(len(floor))
+            trial.set_user_attr("floor_clearing_threshold_count_by_fold", list(floor_count_by_fold))
+            admissible = None
             if champion_by_fold is not None:
-                fold = champion_by_fold[fold_id]
-                if (fold_pruning_bound(sweeps[fold_id], "calmar") <= fold["calmar"]
-                        or fold_pruning_bound(sweeps[fold_id], "cagr") <= fold["cagr"]):
-                    raise optuna.TrialPruned()
-        return sweep_value(sweeps)
+                admissible = admissible_thresholds(sweeps, champion_by_fold, evaluated)
+                admissible_count_by_fold.append(len(admissible))
+                trial.set_user_attr("admissible_threshold_count_by_fold", list(admissible_count_by_fold))
+            if not floor or (admissible is not None and not admissible):
+                raise optuna.TrialPruned()
+        threshold, value = sweep_selection(sweeps)
+        # whether the threshold the rule chose for this trial is one at which every fold beats the champion —
+        # the state gate's own question about this trial's own tau, answered where the sweeps already are so
+        # the loop need not refit to ask it. Not "the set is non-empty": a non-empty set the chosen threshold
+        # does not belong to is a child the state gate still refuses
+        trial.set_user_attr("admissible", None if admissible is None else threshold in admissible)
+        return value
 
     return objective
-
-
-def trial_metrics(trial: optuna.trial.FrozenTrial) -> dict[str, float]:
-    """What a trial leaves in the ledger — and it is not the same quantity for a trial that finished and one
-    a gate stopped. A completed trial has the chained path's growth rate at the threshold the selection rule
-    chose. A pruned one has only `fold_pruning_bound` at the fold it died on: an **upper bound** on a number
-    it never reached, over folds it never all ran. Logging both under one key made two populations read as
-    one, and the ledger's own mean was then a mean of bounds and values together."""
-    if trial.value is not None:
-        return {TRIAL_METRIC_KEY: trial.value}
-    return {"fold_cagr_bound_at_pruning": trial.intermediate_values[max(trial.intermediate_values)]}
 
 
 def trial_row(trial: optuna.trial.FrozenTrial, origin: str, round_number: int | None,
@@ -127,59 +148,74 @@ def trial_row(trial: optuna.trial.FrozenTrial, origin: str, round_number: int | 
     in the ledger, the point the sampler drew, and what the trial left.
 
     Every key stands on every line, `null` where it does not apply, so the file reads as one table and not
-    as two — a completed trial's value and a pruned trial's bound are different quantities and are never the
-    same column, but a reader counting lines should not have to know that first."""
-    pruned = trial.value is None
+    as two, and a reader counting lines does not have to know which is which first.
+
+    The state is read from `trial.state` and never inferred from `trial.value`. Optuna records the last
+    reported intermediate value as a pruned trial's value, so a trial stopped by a gate after reporting one
+    carried a value like a completed trial's — and a ledger that asked `value is None` called every pruned
+    trial complete. That is how a gate pruning three quarters of its points was measured as pruning none."""
+    pruned = trial.state == optuna.trial.TrialState.PRUNED
+    floor_counts = trial.user_attrs["floor_clearing_threshold_count_by_fold"]
+    admissible_counts = trial.user_attrs.get("admissible_threshold_count_by_fold")
+    admissible = trial.user_attrs["admissible"] if not pruned else None
     return {"origin": origin, "round": round_number, "search_index": search_index,
-            "trial_number": trial.number, "state": "pruned" if pruned else "complete",
+            "trial_index": trial.number + 1, "state": "pruned" if pruned else "complete",
             "params": trial.params,
-            TRIAL_METRIC_KEY: None, "fold_cagr_bound_at_pruning": None, "pruned_at_fold": None,
-            **trial_metrics(trial),
-            **({"pruned_at_fold": config.VALIDATION_FOLD_IDS[max(trial.intermediate_values)]}
-               if pruned else {})}
+            "floor_clearing_threshold_count_by_fold": floor_counts,
+            "admissible_threshold_count_by_fold": admissible_counts,
+            "admissible": None if admissible is None else bool(admissible),
+            "pruned_at_fold": config.VALIDATION_FOLD_IDS[len(floor_counts) - 1] if pruned else None,
+            TRIAL_METRIC_KEY: None if pruned else trial.value}
 
 
 def search_hyperparameters(xy: dict, bars_1m: dict[str, np.ndarray],
-                           enqueue: dict | None = None,
                            champion_by_fold: dict[int, dict] | None = None) -> optuna.Study:
     """The asset's TPE search over the frozen space, sequential and seeded — the study itself, so a caller
-    reads the point it chose, that point's value and every point it drew from one object. A point to start
-    from is drawn first, before the sampler's own."""
+    reads the point it chose, that point's value and every point it drew from one object.
+
+    No point is drawn first. The loop used to hand the champion's own parameters to the study as its first trial, so it could never
+    answer worse than where it began, and that trial is now stopped by the gate after its first fold —
+    equality does not beat a strict inequality — so it was a fit spent on a point that could not be a
+    candidate, and a pruned trial without an intermediate value tells the sampler nothing. The guarantee it
+    carried lives in the gate instead: a candidate must beat the champion, so a study that finds nothing
+    better offers nothing."""
     study = optuna.create_study(
         direction="maximize",
         sampler=optuna.samplers.TPESampler(seed=config.SEED,
                                            n_startup_trials=config.HYPERPARAMETER_SEARCH_STARTUP_TRIAL_COUNT),
     )
-    if enqueue is not None:
-        study.enqueue_trial(enqueue)
     study.optimize(build_objective(xy, bars_1m, champion_by_fold),
                    n_trials=config.HYPERPARAMETER_SEARCH_TRIAL_COUNT, n_jobs=1)
     return study
 
 
 def moves(state: dict, asset: dict, profile: dict, family: str) -> tuple:
-    """The hyper-parameter coordinate's one candidate: the best point of a study run on this state's own X
-    and Y, warm-started at the point the state holds, so the study can never answer worse than where it
-    began. Nothing when the incumbent wins — the state is its own candidate and the loop keeps nothing.
+    """The hyper-parameter coordinate's one candidate: the best admissible point of a study run on this
+    state's own X and Y. Nothing when no point beats the state — which is the same guarantee the study once
+    carried by starting from the state's own parameters, now kept by the gate instead of by a fit.
+
+    The candidate is the best **admissible** point, not the best point. A study's best trial by value may be
+    one whose chosen threshold does not beat the champion on every fold; the state gate refuses such a child,
+    and offering it meant the loop answered nothing while holding, further down its own list, a point the
+    gate would have kept. The trials are read by value, descending, and the first that is admissible and
+    beats the champion's own path is offered. When none is, the loop keeps nothing — which is an answer.
 
     The study's points are fits the search pays for and the ledger never sees, because only the one the study
-    chose becomes a state: the count goes back under `asset["trials_drawn"]` — every point the **sampler**
-    drew, pruned and completed alike. The point the study was handed is not one of them: it is the state
-    already in the ledger, and counting it would inflate the loop's exposure by one per study with a
-    candidate that was never a candidate."""
+    chose becomes a state: the count goes back under `asset["trials_drawn"]` — every point the sampler drew,
+    pruned and completed alike, and every one of them a point the study chose to try."""
     del profile, family
-    study = search_hyperparameters(asset["xy_for"](state), asset["bars_1m"], state["best_params"],
-                                  asset.get("champion_by_fold"))
-    asset["trials_drawn"] = len(study.trials) - 1        # the enqueued start is the state, not a draw
+    study = search_hyperparameters(asset["xy_for"](state), asset["bars_1m"], asset.get("champion_by_fold"))
+    asset["trials_drawn"] = len(study.trials)
     log_trials(asset["ticker"], study, "coordinate_search", asset["round"])
     completed = study.get_trials(deepcopy=False, states=(optuna.trial.TrialState.COMPLETE,))
-    if not completed:
+    admissible = sorted((trial for trial in completed
+                         if trial.user_attrs.get("admissible")
+                         and trial.value > asset["champion_objective"]),
+                        key=lambda trial: (-trial.value, trial.number))
+    if not admissible or admissible[0].params == state["best_params"]:
         return ()
-    best = study.best_trial.params
-    if best == state["best_params"]:
-        return ()
-    return ((config.COORDINATE_SEARCH_MOVE_FORWARD, "hpo", {**state, "best_params": best},
-             config.REBUILD_FITS),)
+    return ((config.COORDINATE_SEARCH_MOVE_FORWARD, "hpo",
+             {**state, "best_params": admissible[0].params}, config.REBUILD_FITS),)
 
 
 def main() -> int:

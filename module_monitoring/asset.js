@@ -197,7 +197,7 @@ function buildProposalsFrame(asset, mlStatus) {
     search.proposals.map((proposal) => {
       const delta = proposal.mean_relative_logloss_skill - meanValidationSkill;
       return [
-        proposal.proposal, proposal.trial, formatColumnChanges(proposal, timeframes),
+        proposal.proposal, proposal.trial_index, formatColumnChanges(proposal, timeframes),
         formatPercent(proposal.validation_path.cagr, 2),
         formatNumber(proposal.validation_path.calmar, 2),
         formatNumber(proposal.validation_path.profit_factor, 2),

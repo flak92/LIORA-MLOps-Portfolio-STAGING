@@ -264,7 +264,7 @@ def coordinate_search_json(ticker):
 
 def coordinate_search_trials_jsonl(ticker):
     """Every scored state of the search, one JSON object a line, appended and never rewritten. A line's
-    number is the trial's index, and the trial's number — what `champion_trial`, `beam` and `parent_trial`
+    number is the trial's index, and the trial's number — what `champion_trial_index`, `beam` and `parent_trial_index`
     carry — is that index plus one."""
     return artifact_dir(ticker) / f"{ticker}_coordinate_search_trials.jsonl"
 

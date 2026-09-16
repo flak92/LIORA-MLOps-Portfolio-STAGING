@@ -97,7 +97,7 @@ def proposal_block(proposal: dict) -> dict:
     """One proposal as the page reads it: the model's skill it was chosen on, then what the strategy would do."""
     return {
         "proposal": proposal["proposal"],
-        "trial": proposal["trial"],
+        "trial_index": proposal["trial_index"],
         "added_columns_by_timeframe": proposal["added_columns_by_timeframe"],
         "removed_columns_by_timeframe": proposal["removed_columns_by_timeframe"],
         "mean_relative_logloss_skill": round(proposal["mean_relative_logloss_skill"], 6),
@@ -148,7 +148,7 @@ def coordinate_search_block(ticker: str, best_params: dict, active_columns_by_ti
         "trial_count_by_loop": dict(sorted(trial_count_by_loop.items())),
         "round_count": search["round_count"],
         "search_converged": search["search_converged"],
-        "champion_trial": search["champion_trial"],
+        "champion_trial_index": search["champion_trial_index"],
         "inputs_current": inputs_current,
         # a search whose inputs have gone describes another experiment, and its proposals are numbers of
         # that one: the page shows none of them, and the snapshot publishes none either

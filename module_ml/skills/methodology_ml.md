@@ -238,7 +238,7 @@ history rather than in the code. Keeping a branch alive for a token with one
 value is how the branch nobody runs stops being true.
 
 **Why the resume was written at a round boundary, and not sooner.** The first
-implementation moved `champion_trial` and the research path inside the round, and
+implementation moved `champion_trial_index` and the research path inside the round, and
 wrote the state file after every scored trial, so a run stopped with Ctrl-C
 resumed its round from the beam the round had already reached and appended each
 accepted expansion a second time — 61 scored states where an uninterrupted run
@@ -480,11 +480,12 @@ they reached nothing at all, and the only trace of them was a count.
 
 **A pruned trial and a completed one do not share a ledger key.** A completed
 trial carries `cagr_validation_path`, the chained path's growth rate at the
-threshold the rule chose. A pruned one carries `fold_cagr_bound_at_pruning` and
-the param `pruned_at_fold`: `fold_pruning_bound()` at the fold a gate stopped it
-on, which is an **upper bound** on a quantity it never reached, over folds it
-never all ran. Under one key the two read as one population and the ledger's own
-mean was a mean of bounds and values together.
+threshold the rule chose, and `admissible`, whether that threshold beats the
+champion on every fold. A pruned one carries neither, and carries `pruned_at_fold`
+instead. Both carry `admissible_threshold_count_by_fold`, one count per fold the
+trial reached — what the gate saw, written down rather than inferred from the fact
+that the trial survived. A pruned trial's last count is zero and a completed one's
+is not, which is the whole of the gate's story on one line.
 
 **The stage draws no point to start from.** It is a function of X, Y and the
 frozen constants, so `<TICKER>_parameters.json` is a function of the raw store
@@ -507,21 +508,52 @@ coordinate of § 4's search and is promoted, not tuned. The
 chosen point, its value under the frozen objective and the trial count.
 
 Inside a coordinate search the study is itself a coordinate — one candidate per
-beam member, warm-started at the point that member already holds, so it can never
-answer worse than where it began. Two explicit gates stop a trial early. After
-each validation fold the trial reports what it reached, and then, for the Calmar
-ratio and for the growth rate in turn, the best that fold could still reach — the
-maximum over the whole threshold grid among the points clearing the trade floor —
-is compared with the champion's own value on that fold; if it cannot beat it, the
-trial stops. The compared quantity is an **upper bound** on what the trial can
-still realise there, so a gate can never discard a trial the search would have
-kept, and it fires on the first fold that settles the question. Optuna's median
-pruner is not one of these gates and is not used: it compares a trial's best
+beam member, drawn on that member's own X and Y. It cannot answer worse than the
+member it ran on because a candidate has to beat it: the guarantee is the gate's.
+The study used to be handed that member's own parameters as its first trial, and
+that trial is stopped by the gate after one fold — equality does not beat a strict
+inequality — so it was a fit spent on a point that could not be a candidate, and a
+trial pruned before it reports anything tells the sampler nothing. **One** gate stops a trial early, and it is the
+state gate's own condition read one fold at a time: after each validation fold, the
+thresholds at which every fold so far clears the trade floor **and** beats the
+champion's Calmar there. The set only shrinks as folds are added, and the child the
+search would keep needs one threshold inside it over all three folds, so a trial
+whose set has gone empty cannot produce one however the folds it has not run land.
+Nothing admissible is discarded. The count after each fold is written into the
+ledger whether or not the gate is armed, so what the gate saw is readable and not
+inferred.
+
+**What stood here before asked a different question.** Two gates, each on the best a
+fold could still reach over the whole grid — an upper bound, on the Calmar and on the
+growth rate, read fold by fold and never jointly. Two bounds, each true of *some*
+threshold, say nothing about *one* threshold admissible on every fold — and one
+threshold is what the state gate needs. The set is that quantity, so the gate now
+stops a trial exactly when it can no longer produce a child the search would keep.
+Measured on a full search at the new gate: 80 of 80 points stopped, 74 of them after
+the first validation fold, against champions whose fold Calmar stood at +5.68.
+
+A correction belongs here, because it was published the other way round. An earlier
+measurement reported that the old gates pruned **none** of 76 points. That reading
+was wrong, and its cause is worth keeping: Optuna records the last reported
+intermediate value as a *pruned* trial's value, and the ledger derived a trial's
+state from `value is None`. Every pruned trial therefore wrote itself down as
+completed. The gates had been firing all along; the record could not say so. The
+state is now read from `trial.state`, which is the only thing that knows it.
+
+Optuna's median pruner is not a gate here either: it compares a trial's best
 intermediate value across all of its steps with the median of other trials at one
-step, and with folds as calendar years that is not a comparison of like with
-like. When every trial of a study is stopped, the loop keeps nothing that round —
-which is an answer, not a failure. Every point drawn still reaches the ledger: a
-stopped trial carries the last fold it reported.
+step, and with folds as calendar years that is not a comparison of like with like.
+When every trial of a study is stopped, the loop keeps nothing that round — which is
+an answer, not a failure.
+
+**The loop offers the best admissible point, not the best point.** A study's best
+trial by value may be one whose chosen threshold does not beat the champion on every
+fold; the state gate refuses that child. Offering it meant the loop answered nothing
+while holding, further down its own list, a point the gate would have kept — the
+trials are read by value, descending, and the first admissible one that beats the
+champion's own path is offered. Whether a trial's chosen threshold was admissible is
+decided where the sweeps already are, and carried on its ledger line as `admissible`,
+so the loop asks the question without refitting anything.
 
 ## 8. Classification metric — relative log-loss skill against the training prior
 
@@ -775,6 +807,21 @@ chosen by the coordinate search (§ 4) rather than learnt, no CUSUM event sampli
 differentiation, fixed costs, unit position sizing. The class distribution is
 dominated by `y = 0` (the 2×ATR barrier is rarely touched within one 4H
 block) — reported per asset, not resampled.
+
+**One fold can make the search stand still, and on this asset it does.** The state
+gate keeps a move only where it is better on **every** validation fold. BTC's
+champion stands at a fold Calmar of **+5.68** on F2 with F3 and F4 both negative, so
+a move must beat +5.68 and the two negatives at one threshold. Measured: the
+hyper-parameter loop drew 80 points across four studies and every one was stopped —
+74 after the first fold — and the whole search accepted a single move, `barrier/trade`
+in round 1, before converging. The conjunction over folds and one extreme fold
+together make a search that is nearly motionless.
+
+That is a property of this geometry, written down and not solved here. Whether the
+answer is a different fold measure, a tolerance, or a champion that is not the beam
+leader is a question for the research phase — deciding it now would be choosing a
+selection rule by the result it gives on one asset, which is the thing this layer
+exists to avoid.
 
 **The phase this layer is in.** What is being built here is the correctness of
 the machine, not a result from it: every stage has to answer like a calculator —

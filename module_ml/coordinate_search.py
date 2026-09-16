@@ -180,12 +180,12 @@ def path_entry(trials: list[dict], round_number: int, loop: str, family: str, be
     and what the beam held after it."""
     row = trials[beam[0] - 1]
     return {"round": round_number, "loop": loop, "family": family,
-            "trial": beam[0], "beam": list(beam), "move": row["move"],
+            "trial_index": beam[0], "beam": list(beam), "move": row["move"],
             "mean_relative_logloss_skill": row["mean_relative_logloss_skill"],
             "validation_path": row["validation_path"]}
 
 
-def proposals_block(trials: list[dict], active_state: dict, champion_trial: int,
+def proposals_block(trials: list[dict], active_state: dict, champion_trial_index: int,
                     timeframes: tuple[str, ...]) -> list[dict]:
     """The states a hand may promote: the champion the search accepted first, then the trials no validation
     fold scores below the state the search started from, by the ranking key. A state worse on any fold is
@@ -197,12 +197,12 @@ def proposals_block(trials: list[dict], active_state: dict, champion_trial: int,
                   and state_key(theta(row)) != active_key
                   and all(child >= own for child, own in zip(fold_objective(row), fold_objective(trials[0])))]
     # the champion first — the state the search itself accepted, move by move — then the rest by the key
-    ranked = sorted(qualifiers, key=lambda item: (item[0] != champion_trial,
+    ranked = sorted(qualifiers, key=lambda item: (item[0] != champion_trial_index,
                                                   *ranking_key(trials, item[0], timeframes)))
     active = active_state["columns_by_timeframe"]
     return [{
         "proposal": rank,
-        "trial": index,
+        "trial_index": index,
         "loop": row["loop"],
         "columns_by_timeframe": row["columns_by_timeframe"],
         "added_columns_by_timeframe": feature_set_search.columns_added(row["columns_by_timeframe"], active, timeframes),
@@ -227,7 +227,7 @@ def write_round_state(ticker: str, state_file: dict, trials: list[dict], active_
     is a fixed handful of keys and the proposals are derived once a round rather than once a trial. That is
     what makes the search's own record grow with what it gains: the ledger by one line, this file not at
     all."""
-    state_file["proposals"] = proposals_block(trials, active_state, state_file["champion_trial"] or 1, timeframes)
+    state_file["proposals"] = proposals_block(trials, active_state, state_file["champion_trial_index"] or 1, timeframes)
     dataset.write_json(config.coordinate_search_json(ticker), state_file)
 
 
@@ -298,7 +298,8 @@ def main() -> int:
         active_barriers = dataset.load_barriers(ticker)
         xy = dataset.build_xy(cat, timeframes, catalogue_values, decision_grids,
                               dataset.load_label_events(ticker, cat), active_columns, active_barriers)
-        asset = {"ticker": ticker, "round": None, "xy": xy, "catalogue": cat, "timeframes": timeframes,
+        asset = {"ticker": ticker, "round": None, "champion_objective": None,
+                 "xy": xy, "catalogue": cat, "timeframes": timeframes,
                  "catalogue_values": catalogue_values, "decision_grids": decision_grids,
                  "label_inputs": labels.load_label_inputs(ticker, cat),
                  "bars_1m": strategy.load_bars_1m(ticker), "champion_by_fold": None}
@@ -314,7 +315,7 @@ def main() -> int:
         path, ledger = config.coordinate_search_json(ticker), config.coordinate_search_trials_jsonl(ticker)
         state_file = dataset.load_json(path) if path.exists() else None
         if state_file is None or state_file["inputs"] != inputs:
-            state_file = {"inputs": inputs, "beam": [], "champion_trial": None, "round_count": 0,
+            state_file = {"inputs": inputs, "beam": [], "champion_trial_index": None, "round_count": 0,
                           "search_converged": False, "path": [], "trials_drawn_by_loop": {}}
             ledger.unlink(missing_ok=True)
         # every line of the ledger, the ones a round interrupted after the last boundary wrote among them:
@@ -338,7 +339,7 @@ def main() -> int:
             row = {**trial_result(asset, child, state_material(asset, child, rebuild, inherited)),
                    "loop": loop, "family": family, "move": move,
                    "round": state_file["round_count"] + 1 if move else 0,
-                   "parent_trial": parent}
+                   "parent_trial_index": parent}
             dataset.append_jsonl(ledger, row)                 # the ledger grows by one line, and by nothing else
             trials.append(dataset.to_json_safe(row))          # held as the ledger will read it back
             trial_index_by_state[key] = len(trials)
@@ -361,7 +362,7 @@ def main() -> int:
             # trial 1 is the state the search started from — the champion until a family keeps a move. The
             # beam in flight is a local, read back from the file at the top of every round, because the
             # round is the unit of resume and a replay has to start where the interrupted round started
-            beam = state_file["beam"] or [state_file["champion_trial"] or 1]
+            beam = state_file["beam"] or [state_file["champion_trial_index"] or 1]
             round_number = state_file["round_count"] + 1
             # what this round accepted, kept aside until it ends: a round replayed after an interrupt walks
             # its families again, and the file's path must hold each expansion once, not once per attempt
@@ -378,6 +379,9 @@ def main() -> int:
                     # the champion a study inside this loop has to beat, fold by fold
                     asset["champion_by_fold"] = {fold_id: parent_row["validation"][f"fold_{fold_id}"]
                                                  for fold_id in config.VALIDATION_FOLD_IDS}
+                    # and the objective it stands at, so a generator that offers one candidate can ask the
+                    # gate's own question of its own points instead of offering one the gate will refuse
+                    asset["champion_objective"] = state_objective(parent_row)[0]
                     inherited = None      # the parent's own material, built only if a child inherits it
                     # the fits a generator spends inside itself are its own to count: zeroed before it is
                     # asked and read back after, so a generator that spends none reports none without saying so
@@ -409,11 +413,11 @@ def main() -> int:
             state_file["trials_drawn_by_loop"] = dict(
                 collections.Counter(state_file["trials_drawn_by_loop"]) + round_drawn)
             state_file["beam"] = list(beam)
-            state_file["champion_trial"] = beam[0]
+            state_file["champion_trial_index"] = beam[0]
             state_file["round_count"] = round_number
             state_file["search_converged"] = not round_accepted
 
-        champion_row = trials[state_file["champion_trial"] - 1]
+        champion_row = trials[state_file["champion_trial_index"] - 1]
         print(f"{ticker} {path.name}: converged after {state_file['round_count']} rounds and {len(trials)} trials, "
               f"champion {objective_line(champion_row)} "
               f"({feature_set_search.column_count(champion_row['columns_by_timeframe'], timeframes)} columns), "
