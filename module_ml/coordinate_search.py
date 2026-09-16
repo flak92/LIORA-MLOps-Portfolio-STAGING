@@ -135,17 +135,25 @@ def state_objective(row: dict) -> tuple:
 
 
 def is_gate_cleared(row: dict, parent: dict, move: str) -> bool:
-    """Whether a child may be kept at all: better than the state it came from on every validation fold, or,
-    for a move that shrinks the state, no worse on any of them.
+    """Whether a child may be kept at all: better than the state it came from **on the objective and on
+    every validation fold**, or, for a move that shrinks the state, no worse on either.
+
+    Two conditions and not one. The folds alone admitted a child that beat its parent on all three fold
+    Calmars while the chained path's CAGR — the quantity the search selects on and reports — fell; the
+    search then kept a state worse at the thing it was searching for because it was better at the thing
+    guarding it. The guard does not get to outvote the objective.
 
     The fold measure is a strategy number, so a state whose threshold fell back to the grid floor — no point
     of the grid cleared the trade floor in every fold — is refused before it is compared: its numbers stand
     at a threshold nothing qualified for."""
     if not row["entry_edge_threshold_constraint_met"]:
         return False
+    objective, parent_objective = state_objective(row)[0], state_objective(parent)[0]
     if move == config.COORDINATE_SEARCH_MOVE_BACKWARD:
-        return all(child >= own for child, own in zip(fold_objective(row), fold_objective(parent)))
-    return all(child > own for child, own in zip(fold_objective(row), fold_objective(parent)))
+        return (objective >= parent_objective
+                and all(child >= own for child, own in zip(fold_objective(row), fold_objective(parent))))
+    return (objective > parent_objective
+            and all(child > own for child, own in zip(fold_objective(row), fold_objective(parent))))
 
 
 def ranking_key(trials: list[dict], index: int, timeframes: tuple[str, ...]) -> tuple:
@@ -180,10 +188,12 @@ def proposals_block(trials: list[dict], active_state: dict, champion_trial: int,
                     timeframes: tuple[str, ...]) -> list[dict]:
     """The states a hand may promote: the champion the search accepted first, then the trials no validation
     fold scores below the state the search started from, by the ranking key. A state worse on any fold is
-    never proposed."""
+    never proposed, and neither is one whose threshold fell back to the grid floor — a fallback row wears
+    the numbers of a threshold nothing qualified for, and against a baseline that lost it could rank."""
     active_key = state_key(active_state)
     qualifiers = [(index, row) for index, row in enumerate(trials, start=1)
-                  if state_key(theta(row)) != active_key
+                  if row["entry_edge_threshold_constraint_met"]
+                  and state_key(theta(row)) != active_key
                   and all(child >= own for child, own in zip(fold_objective(row), fold_objective(trials[0])))]
     # the champion first — the state the search itself accepted, move by move — then the rest by the key
     ranked = sorted(qualifiers, key=lambda item: (item[0] != champion_trial,
@@ -275,6 +285,13 @@ def main() -> int:
         best = dataset.load_json(config.parameters_json(ticker))["hyperparameter_search_result"]["best_params"]
         cat = dataset.load_catalogue(ticker)
         timeframes = config.timeframes(cat)
+        # a profile is drafted by a hand and the catalogue is generated: a column named here and absent there
+        # is a typo, and it would otherwise be silence — the forward family admits by membership, so an
+        # unknown name simply never matches and the search runs a smaller space than the profile asked for
+        unknown = feature_set_search.unknown_columns(profile["columns_admitted_by_timeframe"],
+                                                    cat["columns_by_timeframe"], timeframes)
+        if unknown:
+            raise ValueError(f"profile admits columns the catalogue does not offer: {unknown}")
         catalogue_values, decision_grids = dataset.load_feature_material(ticker, cat, timeframes)
         active_columns = dataset.load_feature_columns(ticker, cat)
         active_barriers = dataset.load_barriers(ticker)
@@ -373,8 +390,14 @@ def main() -> int:
                                             parent_row, trials[index - 1]), flush=True)
                         if is_gate_cleared(trials[index - 1], parent_row, move):
                             children.append(index)
-                if children:
-                    beam = top_beam(children, trials, timeframes)
+                # the beam the family leaves is the best of its children **and the parents it came from**:
+                # a family that finds nothing better keeps what it had, and one that improves only the third
+                # member does not thereby unseat the first. Ranking children alone let a family replace a
+                # beam wholesale with states that had each beaten their own parent and none of which had
+                # beaten the champion — the path could then descend, which is the one thing it must not do
+                previous_beam = beam
+                beam = top_beam(children + beam, trials, timeframes)
+                if beam != previous_beam:
                     round_accepted = True
                     round_path.append(path_entry(trials, round_number, loop, family, beam))
             # the counters, the beam and the champion move together at the round's end: a trial written in

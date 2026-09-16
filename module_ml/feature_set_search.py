@@ -35,6 +35,15 @@ def without_column(columns_by_timeframe: dict, timeframe: str, name: str) -> dic
             timeframe: [column for column in columns_by_timeframe[timeframe] if column != name]}
 
 
+def unknown_columns(admitted: dict, catalogue: dict, timeframes: tuple[str, ...]) -> dict:
+    """Columns a profile admits on a timeframe the catalogue does not offer there — the one thing about a
+    hand-drafted profile a stage can decide by itself, and the one that is otherwise silent: `moves()` admits
+    by membership, so a misspelt name matches nothing and the search quietly runs a smaller space."""
+    return {timeframe: sorted(set(admitted[timeframe]) - set(catalogue[timeframe]))
+            for timeframe in timeframes
+            if set(admitted[timeframe]) - set(catalogue[timeframe])}
+
+
 def moves(state: dict, asset: dict, profile: dict, family: str) -> tuple:
     """Every legal move of one family from one state: the direction the gate compares in, the move's own
     name for the progress line, the whole state it leads to, and what a child of it must build again — the

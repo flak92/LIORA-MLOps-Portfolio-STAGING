@@ -60,15 +60,20 @@ def fold_pruning_bound(sweep: dict[float, dict], measure: str) -> float:
 
 def sweep_value(sweeps: dict[int, dict]) -> float:
     """A trial's own value: the chained path's growth rate at the threshold the one selection rule would
-    pick over these folds — the grid floor when no threshold clears the trade floor in every fold, which is
-    the rule's own fallback."""
+    pick over these folds.
+
+    A trial where no point of the grid clears the trade floor in every fold has no value, and is pruned
+    rather than scored at the grid floor. The floor was the rule's fallback, and it is a fallback for a
+    *report* — a number to show when nothing qualified. Handing it to a sampler as a value let a trial that
+    never qualified compete, and win, on the numbers of a threshold nothing qualified for."""
     cleared = [threshold for threshold in config.ENTRY_EDGE_THRESHOLD_GRID
                if all(sweeps[fold_id][threshold]["trade_count"] >= config.MINIMUM_TRADES_PER_VALIDATION_FOLD
                       for fold_id in config.VALIDATION_FOLD_IDS)]
-    thresholds = cleared or [config.ENTRY_EDGE_THRESHOLD_GRID[0]]
+    if not cleared:
+        raise optuna.TrialPruned()
     return max(strategy.validation_path_cagr(
         {fold_id: sweeps[fold_id][threshold]["final_equity"] for fold_id in config.VALIDATION_FOLD_IDS})
-        for threshold in thresholds)
+        for threshold in cleared)
 
 
 def build_objective(xy: dict[str, np.ndarray], bars_1m: dict[str, np.ndarray],
@@ -163,6 +168,9 @@ def main() -> int:
         # never of its own last value. A point to start from belongs to the search's hpo loop, where the
         # round's champion is an input the state file records
         study = search_hyperparameters(xy, bars_1m)
+        if not study.get_trials(deepcopy=False, states=(optuna.trial.TrialState.COMPLETE,)):
+            raise SystemExit(f"{ticker}: no admissible strategy on every validation fold at any threshold — "
+                             f"every one of the {config.HYPERPARAMETER_SEARCH_TRIAL_COUNT} trials was pruned")
         payload = {
             "hyperparameter_search_result": {
                 "best_params": study.best_trial.params,
