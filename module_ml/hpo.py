@@ -3,8 +3,12 @@
 would pick, or — under the model's own objective — the mean uniqueness-weighted log-loss over F2–F4. The
 final holdout is never touched here.
 
-Inside a coordinate search the study is also a coordinate: one candidate, warm-started at the point the
-state already holds, so it can never answer worse than where it began, and pruned by two explicit gates.
+The stage is a function of X, Y and the frozen constants alone: it draws no point to start from, so the
+parameters file it writes is a function of the raw store and this code, never of what it wrote last.
+
+Inside a coordinate search the study is also a coordinate, and there a point to start from is proper: one
+candidate, warm-started at the point the state already holds — an input the search records in `inputs` — so
+it can never answer worse than where it began, and pruned by two explicit gates.
 After each fold a trial reports what it reached, then stops if the best that fold could still do — over the
 whole threshold grid, among the points clearing the trade floor — cannot beat the champion's own on that
 fold, on the Calmar ratio or on the growth rate. The bound is an upper bound, so a gate that prunes on it
@@ -179,11 +183,11 @@ def main() -> int:
         xy = dataset.load_xy(ticker)
         bars_1m = (strategy.load_bars_1m(ticker)
                    if config.SELECTION_OBJECTIVE == config.SELECTION_OBJECTIVE_CAGR else None)
-        # the stage has no champion to beat, so no gate; it starts from the point it last chose, if it has one
-        previous = config.parameters_json(ticker)
-        enqueue = (dataset.load_json(previous)["hyperparameter_search_result"]["best_params"]
-                   if previous.exists() and config.SELECTION_OBJECTIVE == config.SELECTION_OBJECTIVE_CAGR else None)
-        study = search_hyperparameters(xy, bars_1m, enqueue)
+        # the stage has no champion to beat and no point to start from: it is a function of X, Y and the
+        # frozen constants, so <TICKER>_parameters.json is a function of the raw store and this code and
+        # never of its own last value. A point to start from belongs to the search's hpo loop, where the
+        # round's champion is an input the state file records
+        study = search_hyperparameters(xy, bars_1m)
         payload = {
             "hyperparameter_search_result": {
                 "best_params": study.best_trial.params,

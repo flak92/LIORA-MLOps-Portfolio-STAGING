@@ -176,9 +176,22 @@ they were not scored by. A promotion, a retuning, a catalogue change or an edite
 profile leaves a recorded search describing a state that has gone, and the page
 then states that instead of comparing against a baseline it no longer has.
 
-**What a round costs**, measured on BTC with a beam of three, all three loops and
-the whole catalogue admitted — the search that converged in two rounds and 59
-scored states, 250.5 s in all:
+**What a round costs is a function of the hyper-parameters it is measured under.**
+The numbers below are BTC with a beam of three, all three loops and the whole
+catalogue admitted — the search that converged in two rounds and 59 scored
+states, 250.5 s in all — under
+
+```
+max_depth 3 · num_boost_round 100 · eta 0.2537 · min_child_weight 37
+subsample 0.7993 · colsample_bytree 0.5780 · lambda 0.2051 · alpha 0.01307
+```
+
+which is a small model: depth 3 and a hundred rounds fit in about two seconds a
+fold, so `make ml-hpo` is ten seconds and `make ml-all` twenty-four. A state's
+cost is three such fits plus a replay of the threshold grid, and the fits are the
+part that moves: under a depth-8, thousand-round point the same round is hours,
+not minutes. Read the table as a shape, not as a duration, and re-measure it
+whenever `best_params` moves:
 
 | round | loop / family | children | seconds | s / child |
 |---|---|---|---|---|
@@ -191,11 +204,34 @@ scored states, 250.5 s in all:
 | 2 | `feature_set` / forward | 8 | 31.7 | 3.96 |
 | 2 | `feature_set` / backward | 14 | 61.5 | 4.39 |
 
-A child that only moved the trade's exit costs about half a full state, not a
-tenth: three fits are saved, but the threshold grid — 61 points over three folds
-— is replayed either way and is what a child of that family mostly is. The
-`hpo` loop appears in neither round because its study kept nothing: its one
-candidate is warm-started at the state's own point, and here that point won.
+A child that only moved the trade's exit costs **about half a full state, not a
+tenth**: three fits are saved, but the threshold grid — 61 points over three
+folds — is replayed either way and is what a child of that family mostly is.
+Under a larger model the same child would be far cheaper than half, because the
+fits it skips would then dominate; half is the figure for a model this small, and
+it is the conservative one. The `hpo` loop appears in neither round because its
+study kept nothing: its one candidate starts from the point the state already
+holds, and here that point won.
+
+**One schema, whichever objective is frozen.** A trial's row carries the whole of
+Θ and every quantity both objectives read — the fold's skill and its Calmar ratio
+and CAGR and drawdown and profit factor, and the path they chain into — under one
+set of key names, whatever `SELECTION_OBJECTIVE` says. Only two things are keyed
+by the token: which of those the gate and the ranking read, and the name of the
+threshold's own score. That is what makes the regression of § 4 possible at all:
+flipping the token back re-reads the same rows by different keys rather than
+producing a different file, so the comparison is a projection and not a
+translation.
+
+**Why the resume was written at a round boundary, and not sooner.** The first
+implementation moved `champion_trial` and the research path inside the round, and
+the state file is written after every scored trial, so a run stopped with Ctrl-C
+resumed its round from the beam the round had already reached and appended each
+accepted expansion a second time — 61 scored states where an uninterrupted run
+scored 59. The round is the unit of resume precisely because a replay must begin
+where the interrupted run's round began; both quantities now move only when the
+round ends, and the gate that caught it is the one that compares an interrupted
+run with an uninterrupted one byte for byte.
 
 The proposals are the states a hand may promote: every trial no validation fold
 scores below the state the search started from, by the ranking above, and the
@@ -233,8 +269,11 @@ code.
 
 Triple barrier [4] on every 15m boundary after the warm-up. Entry
 `P₀ = entry_price = canonical 1m open(t_0)`; horizontal barriers
-`P₀ ± 2.0 × ATR14` of the last closed **canonical** 1h bar; vertical barrier
-`LABEL_HORIZON_MINUTES` = 240 minutes (16 × 15m bars). Resolution walks
+`P₀ ± m × ATR14` of the last closed **canonical** 1h bar; vertical barrier the
+asset's horizon, `"4h"` = 240 minutes = 16 × 15m bars by default. Both are
+coordinates of § 4's search and are promoted into `<TICKER>_barriers.json`; the
+frozen defaults `ATR_BARRIER_MULTIPLIER` and `LABEL_HORIZON` are what an asset
+holds until one is. Resolution walks
 the canonical 1m path: the first minute whose high touches `upper_barrier`
 gives `y = +1`, whose low touches `lower_barrier` gives `y = −1`, neither gives
 `y = 0` with the exit at the close of the last event minute.
@@ -250,6 +289,25 @@ not here:
 upper_hit = (volume > 0) & (high >= upper_barrier)
 lower_hit = (volume > 0) & (low  <= lower_barrier)
 ```
+
+**The horizon travels as a duration token and becomes a number once.**
+`HORIZON_TOKEN_MINUTES` maps `"1h" … "1d"` to minutes and
+`dataset.load_barriers()` resolves the asset's token there and nowhere else, so
+a search that moves the coordinate moves one number. Four places compute with
+that number, and each is handed it:
+
+| reader | what it decides with the horizon |
+|---|---|
+| `labels.label_events()` | which decisions are labelled at all — the grid keeps only those whose whole horizon fits inside the research window |
+| `labels.triple_barrier()` | how far down the 1m path a walk goes, and where a vertical exit is marked |
+| `validation.scoring_set()` | which supervised rows a fold scores — those whose maximum horizon fits the block, decided at t₀ |
+| `strategy.signals_for_fold()` | which entries are eligible in a fold — the same test, on the trade's side |
+
+`validation.training_set()` is **not** among them: the purge is
+`event_end_ts <= oos_start`, and `event_end_ts` is a column of Y that already
+carries the horizon the labels were written with. A fifth reader is prose —
+`status.py` states the horizon and the tail it costs in `<TICKER>_README.md`.
+`LABEL_HORIZON_MS` had no reader left once the four took a parameter and is gone.
 
 If the vertical-barrier minute contains no trade, its canonical close is a
 **last-observed-price mark** used by the research simulation, not an observed
@@ -345,9 +403,16 @@ Optuna TPE (`seed = 42`), 3 sequential trials, in-memory study. The objective is
 the one `SELECTION_OBJECTIVE` names, so the parameters are tuned on the quantity
 the search selects on: the CAGR of the validation path at the threshold § 9's
 rule would pick, maximised — or, under the model's own objective, the mean
-**uniqueness-weighted** multiclass log-loss over F2–F4, minimised. The stage
-starts from the point it last chose, so a rerun after a promotion begins where
-the asset already is. Space: `max_depth` 2–6, `eta` log 0.01–0.3, `min_child_weight`
+**uniqueness-weighted** multiclass log-loss over F2–F4, minimised.
+
+**The stage draws no point to start from.** It is a function of X, Y and the
+frozen constants, so `<TICKER>_parameters.json` is a function of the raw store
+and this code and never of its own last value: a derived artifact that read
+itself would make the chain a fixed-point iteration, and two runs of `ml-all`
+would not have to agree until it settled. A point to start from belongs to the
+search's `hpo` loop below, where the round's champion is an input the state file
+records in `inputs` and the comparison is against a state the search itself
+holds. Space: `max_depth` 2–6, `eta` log 0.01–0.3, `min_child_weight`
 1–50, `subsample` 0.5–1, `colsample_bytree` 0.5–1, `lambda` log 0.1–10,
 `alpha` log 0.01–1, `num_boost_round` 50–100 step 50. Fixed:
 `multi:softprob`, `num_class = 3`, `tree_method = hist`, `nthread = 1`,
