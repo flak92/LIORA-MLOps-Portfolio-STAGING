@@ -9,16 +9,16 @@ Research window 2021-01-01 → 2026-08-26, seed 42. One directory per ticker, on
 | `BTC_README.md` | this file | — |
 | `BTC_barriers.json` | the promoted barrier geometry: the two multipliers of a trade, the label's own and the horizon token — a hand's choice; absent, the frozen constants are the asset's | — |
 | `BTC_catalogue.json` | the feature layer's contract: the timeframes and their slots, the warm-up, the columns offered per timeframe and the default set — read once per stage | 2 KB |
-| `BTC_coordinate_search.json` | the coordinate search: every scored state, the beam, the path it took, the champion and the proposals | 77 KB |
-| `BTC_coordinate_search_profile.json` | the search profile: the columns admitted, the state to start from, each coordinate's grid and the loops of a round — drafted by a hand | 918 B |
+| `BTC_coordinate_search.json` | the coordinate search: every scored state, the beam, the path it took, the champion and the proposals | 144 KB |
+| `BTC_coordinate_search_profile.json` | the search profile: the columns admitted, the state to start from, each coordinate's grid and the loops of a round — drafted by a hand | 1 KB |
 | `BTC_feature_set.json` | the promoted feature set: its columns per timeframe, a hand's choice — absent, the default set is the asset's | — |
 | `BTC_features_ss-15-hh-dd-MM.parquet` | the catalogue on 15m — every definition offered on it, on the decision grid | 10,699 KB |
 | `BTC_features_ss-mm-01-dd-MM.parquet` | the catalogue on 1h — every definition offered on it, on the decision grid | 2,950 KB |
 | `BTC_features_ss-mm-04-dd-MM.parquet` | the catalogue on 4h — every definition offered on it, on the decision grid | 1,667 KB |
 | `BTC_label_events_ss-15-hh-dd-MM.parquet` | Y — triple-barrier outcome and the event prices | 5,265 KB |
 | `BTC_model_evaluation.json` | classification metrics per fold | 7 KB |
-| `BTC_oos_predictions_ss-15-hh-dd-MM.parquet` | out-of-sample class probabilities, full windows | 2,345 KB |
-| `BTC_parameters.json` | the one parameters file: what the search chose | 370 B |
+| `BTC_oos_predictions_ss-15-hh-dd-MM.parquet` | out-of-sample class probabilities, full windows | 2,394 KB |
+| `BTC_parameters.json` | the one parameters file: what the search chose | 385 B |
 | `BTC_strategy_evaluation.json` | threshold, PnL and the equity curve | 10 KB |
 
 Each of the 3 catalogue parquets carries 16 rows more than `BTC_label_events_ss-15-hh-dd-MM.parquet`: the tail decisions whose full 240-minute horizon does not fit inside the research window have features but no label. `BTC_oos_predictions_ss-15-hh-dd-MM.parquet` holds the 4 out-of-sample prediction windows end to end; the metrics score only the supervised, horizon-fitting subset of each.
@@ -39,14 +39,14 @@ The default set of the catalogue — no promoted file. The asset's feature set b
 
 ## Model
 
-Search: 3 Optuna trials, best log-loss 0.815452. Winner: depth 3, eta 0.0596, 50 rounds, subsample 0.646, colsample 0.806, min_child_weight 22, lambda 0.1901, alpha 0.0384.
+Search: 3 Optuna trials, best best_cagr_validation_path 0.013660. Winner: depth 3, eta 0.2537, 100 rounds, subsample 0.799, colsample 0.578, min_child_weight 37, lambda 0.2051, alpha 0.0131.
 
 | fold | prior log-loss | model log-loss | rel. skill | scored |
 | --- | --- | --- | --- | --- |
-| F2 | 0.873507 | 0.820586 | +6.06% | 35,023 |
-| F3 | 0.918886 | 0.825459 | +10.17% | 35,018 |
-| F4 | 0.877705 | 0.800310 | +8.82% | 35,120 |
-| **F5 — final holdout** | 0.866520 | 0.802334 | +7.41% | 57,776 |
+| F2 | 0.873507 | 0.849144 | +2.79% | 35,023 |
+| F3 | 0.918886 | 0.825745 | +10.14% | 35,018 |
+| F4 | 0.877705 | 0.803257 | +8.48% | 35,120 |
+| **F5 — final holdout** | 0.866520 | 0.800418 | +7.63% | 57,776 |
 
 ## Fold geometry
 
@@ -61,16 +61,16 @@ Search: 3 Optuna trials, best log-loss 0.815452. Winner: depth 3, eta 0.0596, 50
 
 ## Strategy
 
-Entry edge threshold **0.23**. Cost 0.06% per side; the hierarchy gate requires the side to match the 4h trend sign with at least 2 of 3 timeframes agreeing.
+Entry edge threshold **0.42**. Cost 0.06% per side; the hierarchy gate requires the side to match the 4h trend sign with at least 2 of 3 timeframes agreeing.
 
 | fold | Sharpe | maxDD | trades | hit rate | exposure | final equity |
 | --- | --- | --- | --- | --- | --- | --- |
-| F2 | +0.222 | 8.2% | 39 | 46.2% | 1.13% | 1.0147 |
-| F3 | -2.168 | 23.0% | 91 | 39.6% | 2.34% | 0.8235 |
-| F4 | -0.437 | 16.7% | 112 | 46.4% | 3.47% | 0.9513 |
-| **F5 — final holdout** | -1.059 | 19.8% | 178 | 45.5% | 3.24% | 0.8605 |
+| F2 | +1.026 | 7.7% | 68 | 50.0% | 2.17% | 1.0986 |
+| F3 | -0.858 | 9.1% | 50 | 38.0% | 1.67% | 0.9545 |
+| F4 | -0.084 | 7.0% | 30 | 50.0% | 0.93% | 0.9933 |
+| **F5 — final holdout** | -1.660 | 14.0% | 73 | 41.1% | 1.48% | 0.8778 |
 
-Final-holdout exits: upper_barrier 47, lower_barrier 52, vertical 79, ambiguous 0.
+Final-holdout exits: upper_barrier 19, lower_barrier 13, vertical 41, ambiguous 0.
 
 ## Reproducing the ML artifacts in this folder
 

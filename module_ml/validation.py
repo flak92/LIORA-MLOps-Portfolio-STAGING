@@ -13,6 +13,13 @@ def fold_bounds(fold_id: int) -> tuple[int, int]:
     return config.FOLD_BOUNDS_MS[fold_id - 1], config.FOLD_BOUNDS_MS[fold_id]
 
 
+def fold_minutes(fold_id: int) -> int:
+    """How long fold Fk lasts, in minutes — 2024 is a leap year, so F4 is longer than F2 and F3 and no
+    fold is idealised to a round year."""
+    start_ms, end_ms = fold_bounds(fold_id)
+    return (end_ms - start_ms) // config.MILLISECONDS_PER_MINUTE
+
+
 def average_uniqueness_weight(entry_ts: np.ndarray, event_end_ts: np.ndarray) -> np.ndarray:
     """Average uniqueness [Lopez de Prado, ch. 4] over exactly the events given: the mean over an event's minutes of
     1 / (events of this population open at that minute), exact via prefix sums."""

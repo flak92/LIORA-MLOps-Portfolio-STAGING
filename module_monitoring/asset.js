@@ -65,8 +65,8 @@ function buildModelFrame(asset, mlStatus) {
   frame.body.appendChild(buildKeyValueBox([
     ["parameters", "depth " + bestParameters.max_depth + " · eta " + bestParameters.eta.toFixed(4)
       + " · rounds " + bestParameters.num_boost_round + " · subsample " + bestParameters.subsample.toFixed(2)],
-    ["search", asset.hyperparameter_search_result.trial_count + " Optuna trials · best mean F2–F4 log-loss "
-      + asset.hyperparameter_search_result.best_logloss.toFixed(6)],
+    ["search", asset.hyperparameter_search_result.trial_count + " Optuna trials · best F2–F4 path CAGR "
+      + formatPercent(asset.hyperparameter_search_result.best_cagr_validation_path, 2)],
   ]));
   const rows = validationFolds(asset).map((foldKey) => ["F" + foldKey.split("_")[1], asset.validation[foldKey]]);
   rows.push(["F" + mlStatus.final_holdout_fold_id + " — final holdout (out-of-sample)", asset.final_holdout]);
@@ -186,26 +186,30 @@ function buildProposalsFrame(asset, mlStatus) {
       + " · the active state's mean validation skill " + formatPercent(meanValidationSkill, 2)],
   ]));
   frame.body.appendChild(buildTable(
-    ["#", "trial", "columns added / removed", ...folds.map((fold) => "skill F" + fold.split("_")[1]), "mean skill",
-     "&Delta; vs active", "&tau;", ...folds.map((fold) => "Sharpe F" + fold.split("_")[1]),
-     ...folds.map((fold) => "trades F" + fold.split("_")[1]), "selection score"],
+    ["#", "trial", "columns added / removed", "path CAGR", "path Calmar", "path PF",
+     ...folds.map((fold) => "Calmar F" + fold.split("_")[1]),
+     ...folds.map((fold) => "trades F" + fold.split("_")[1]),
+     "mean skill", "&Delta; vs active", "&tau;"],
     search.proposals.map((proposal) => {
       const delta = proposal.mean_relative_logloss_skill - meanValidationSkill;
       return [
         proposal.proposal, proposal.trial, formatColumnChanges(proposal, timeframes),
-        ...folds.map((fold) => formatPercent(proposal.validation[fold].relative_logloss_skill, 2)),
+        formatPercent(proposal.validation_path.cagr, 2),
+        formatNumber(proposal.validation_path.calmar, 2),
+        formatNumber(proposal.validation_path.profit_factor, 2),
+        ...folds.map((fold) => formatNumber(proposal.validation[fold].calmar, 2)),
+        ...folds.map((fold) => formatCount(proposal.validation[fold].trade_count)),
         formatPercent(proposal.mean_relative_logloss_skill, 2),
         (delta >= 0 ? "+" : "") + (100 * delta).toFixed(2) + " pp",
         proposal.entry_edge_threshold.toFixed(2) + (proposal.entry_edge_threshold_constraint_met ? "" : " !"),
-        ...folds.map((fold) => formatNumber(proposal.validation[fold].sharpe, 2)),
-        ...folds.map((fold) => formatCount(proposal.validation[fold].trade_count)),
-        formatNumber(proposal.selection_score_mean_sharpe, 2),
       ];
     })));
-  frame.body.appendChild(buildFootnote("every proposal is a trial no validation fold scores below the state the search started from, by "
-    + "mean skill, under the asset's frozen parameters; when a pass accepted a set, that set stands first. The Sharpe "
-    + "and trade columns say what the strategy would do with each at its own entry edge threshold — τ marked ! when "
-    + "its trade floor was not met — and were never selected on. Nothing here touched the final holdout."));
+  frame.body.appendChild(buildFootnote("every proposal is a trial no validation fold scores below the state the search "
+    + "started from; they are ranked by the CAGR of the validation path — F2, F3 and F4 chained into one "
+    + "walk-forward equity — and a move reached one only by raising the Calmar ratio of every fold, under the trade "
+    + "floor, at its own entry edge threshold (τ marked ! when that floor was not met). When a family accepted a "
+    + "state, that state stands first. The model's own skill is reported beside them and was not selected on. "
+    + "Nothing here touched the final holdout."));
   return frame.frame;
 }
 

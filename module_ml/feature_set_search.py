@@ -49,7 +49,8 @@ def set_key(columns_by_timeframe: dict, timeframes: tuple[str, ...]) -> tuple:
 
 def moves(state: dict, asset: dict, profile: dict, family: str) -> tuple:
     """Every legal move of one family from one state: the direction the gate compares in, the move's own
-    name for the progress line, and the whole state it leads to.
+    name for the progress line, the whole state it leads to, and what a child of it must build again — the
+    model's matrix and its three fits, X being all that a column changes.
 
     The catalogue fixes the order — the profile says which columns are admitted, never in what order they
     are tried — and the last column of a set is never taken out, so a state always has one."""
@@ -58,12 +59,14 @@ def moves(state: dict, asset: dict, profile: dict, family: str) -> tuple:
     if family == config.COORDINATE_SEARCH_MOVE_FORWARD:
         return tuple(
             (config.COORDINATE_SEARCH_MOVE_FORWARD, f"+{config.feature_id(name, timeframe)}",
-             {**state, "columns_by_timeframe": with_column(active, timeframe, name, catalogue[timeframe])})
+             {**state, "columns_by_timeframe": with_column(active, timeframe, name, catalogue[timeframe])},
+             config.REBUILD_FITS)
             for timeframe in timeframes for name in catalogue[timeframe]
             if name in admitted[timeframe] and name not in active[timeframe])
     if column_count(active, timeframes) <= 1:
         return ()
     return tuple(
         (config.COORDINATE_SEARCH_MOVE_BACKWARD, f"-{config.feature_id(name, timeframe)}",
-         {**state, "columns_by_timeframe": without_column(active, timeframe, name)})
+         {**state, "columns_by_timeframe": without_column(active, timeframe, name)},
+         config.REBUILD_FITS)
         for timeframe in timeframes for name in active[timeframe])

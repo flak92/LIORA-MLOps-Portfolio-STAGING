@@ -149,16 +149,32 @@ COORDINATE_SEARCH_PROPOSAL_COUNT = 3
 COORDINATE_SEARCH_MOVE_FORWARD = "forward"
 COORDINATE_SEARCH_MOVE_BACKWARD = "backward"
 # the loops of a round, in the frozen order a round applies them; a profile names the subset it searches
+COORDINATE_SEARCH_LOOP_BARRIER = "barrier"
 COORDINATE_SEARCH_LOOP_FEATURE_SET = "feature_set"
-COORDINATE_SEARCH_ROUND_LOOPS = (COORDINATE_SEARCH_LOOP_FEATURE_SET,)
+COORDINATE_SEARCH_LOOP_HPO = "hpo"
+COORDINATE_SEARCH_ROUND_LOOPS = (COORDINATE_SEARCH_LOOP_BARRIER, COORDINATE_SEARCH_LOOP_FEATURE_SET,
+                                 COORDINATE_SEARCH_LOOP_HPO)
 # the quantity every selection reads — the gate per fold, the ranking, the threshold's own choice and,
 # once the search tunes them, the hyper-parameters: one token, so one experiment moves all of them
 SELECTION_OBJECTIVE_RELATIVE_LOGLOSS_SKILL = "relative_logloss_skill"
-SELECTION_OBJECTIVE = SELECTION_OBJECTIVE_RELATIVE_LOGLOSS_SKILL
-COORDINATE_SEARCH_BEAM_WIDTH = 1          # the branches a pass keeps; 1 is one champion, move by move
-# the barrier geometry a promotion writes, in the order a state keys it
-BARRIER_COORDINATE_NAMES = ("atr_barrier_multiplier", "label_horizon",
-                            "take_profit_atr_multiplier", "stop_loss_atr_multiplier")
+SELECTION_OBJECTIVE_CAGR = "cagr"
+SELECTION_OBJECTIVE = SELECTION_OBJECTIVE_CAGR
+# what the gate compares fold by fold under each objective: the model's own skill, or the growth a fold
+# earned per unit of the drawdown it took — the fold is the unit of robustness, the path the unit of the goal
+SELECTION_FOLD_MEASURE = {SELECTION_OBJECTIVE_RELATIVE_LOGLOSS_SKILL: "relative_logloss_skill",
+                          SELECTION_OBJECTIVE_CAGR: "calmar"}
+COORDINATE_SEARCH_BEAM_WIDTH = 3          # the branches a pass keeps; 1 is one champion, move by move
+# the barrier geometry a promotion writes, in the order a state keys it, and what each value is however a
+# hand wrote it in a grid: a multiplier is a float, a horizon a token of HORIZON_TOKEN_MINUTES
+BARRIER_COORDINATE_CASTS = {"atr_barrier_multiplier": float, "label_horizon": str,
+                            "take_profit_atr_multiplier": float, "stop_loss_atr_multiplier": float}
+BARRIER_COORDINATE_NAMES = tuple(BARRIER_COORDINATE_CASTS)
+# what a candidate must build again before it can be scored, cheapest first: the trade's own exit alone,
+# the model's matrix and its three fits, or Y before them. A coordinate's moves say which; the search reads
+# the word and never asks which coordinate moved
+REBUILD_BACKTEST = "backtest"
+REBUILD_FITS = "fits"
+REBUILD_LABELS = "labels"
 
 # ---- the feature layer's contract, per asset: <TICKER>_catalogue.json, written by module_features.catalogue and read once
 # per stage by dataset.load_catalogue — carried as `cat` (xy["catalogue"]) into every helper below; a helper reads the

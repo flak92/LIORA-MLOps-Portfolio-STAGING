@@ -201,6 +201,8 @@ def backtest(simulation_inputs: dict, signals: dict, entry_edge_threshold: float
     equity_1m[cursor:] = equity
 
     trade_returns = np.asarray(trades)
+    max_drawdown = validation.max_drawdown(equity_1m)   # 1m path: intra-bar drawdown is real
+    cagr = validation.cagr(float(equity), fold_minute_count)
     # the same path sampled at bar closes, starting from the capital itself:
     # without E0 the first 15 minutes of the fold produce no return at all
     equity_15m = np.concatenate(([1.0], equity_1m[bar_close_offset_minutes::decision_bar_minutes]))
@@ -209,7 +211,10 @@ def backtest(simulation_inputs: dict, signals: dict, entry_edge_threshold: float
         "equity_1m": equity_1m,
         "trade_returns": trade_returns,
         "sharpe": validation.sharpe_annualised(returns_15m),
-        "max_drawdown": validation.max_drawdown(equity_1m),  # 1m path: intra-bar drawdown is real
+        "cagr": cagr,
+        "max_drawdown": max_drawdown,
+        "calmar": validation.calmar(cagr, max_drawdown),
+        "profit_factor": validation.profit_factor(trade_returns),
         "trade_count": int(trade_returns.size),
         "hit_rate": float((trade_returns > 0).mean()) if trade_returns.size else None,
         "average_trade_return": float(trade_returns.mean()) if trade_returns.size else None,
@@ -228,22 +233,41 @@ def pnl_block(result: dict) -> dict:
     return {k: v for k, v in result.items() if k not in INTERMEDIATE_RESULT_KEYS}
 
 
+def validation_path_cagr(final_equity_by_fold: dict[int, float]) -> float:
+    """The chained validation path's growth rate, from what each fold settled at alone — the one quantity of
+    the path that needs no array, so a threshold, a trial and a state are all ranked without replaying one.
+    The scale runs left to right in the fold table's order and the product is never written out."""
+    scale, minute_count = 1.0, 0
+    for fold_id in config.VALIDATION_FOLD_IDS:
+        scale *= final_equity_by_fold[fold_id]
+        minute_count += validation.fold_minutes(fold_id)
+    return validation.cagr(scale, minute_count)
+
+
+def results_by_threshold(simulation_inputs: dict, signals: dict,
+                         fold_start_ms: int, fold_end_ms: int) -> dict[float, dict]:
+    """One fold's backtest at every point of the threshold grid, each stripped of its 1m path and its trade
+    returns — the sweep a hyper-parameter trial reads to know the best that fold can still do."""
+    return {threshold: pnl_block(backtest(simulation_inputs, signals, threshold, fold_start_ms, fold_end_ms))
+            for threshold in config.ENTRY_EDGE_THRESHOLD_GRID}
+
+
 def validation_path_block(validation_by_fold: dict[int, dict]) -> dict:
     """The validation folds chained into one walk-forward path — each fold's 1m equity scaled by what the
     folds before it settled at — and what that path earned, drew down and returned per unit of drawdown.
     The scale runs left to right and the product is never written out: another association of the same
     factors differs in the last bit.""" 
-    equity_scaled, trade_returns, minute_count, scale = [], [], 0, 1.0
+    equity_scaled, trade_returns, scale = [], [], 1.0
     for fold_id in config.VALIDATION_FOLD_IDS:
         result = validation_by_fold[fold_id]
         equity_scaled.append(result["equity_1m"] * scale)
         trade_returns.append(result["trade_returns"])
-        minute_count += result["equity_1m"].size
         scale *= result["final_equity"]
     equity_validation_1m = np.concatenate(equity_scaled)
     pooled_trade_returns = np.concatenate(trade_returns)
     max_drawdown = validation.max_drawdown(equity_validation_1m)
-    cagr = validation.cagr(float(equity_validation_1m[-1]), minute_count)
+    cagr = validation_path_cagr({fold_id: validation_by_fold[fold_id]["final_equity"]
+                                 for fold_id in config.VALIDATION_FOLD_IDS})
     return {
         "cagr": cagr,
         "max_drawdown": max_drawdown,
@@ -258,17 +282,33 @@ def equity_curve(equity_1m: np.ndarray) -> dict:
     return {"equity": np.round(equity_1m[idx], 6).tolist()}
 
 
+def selection_score_key() -> str:
+    """The key the chosen threshold's score is published under — named for what it is, so the payload never
+    says Sharpe where it holds a growth rate."""
+    return ("selection_score_cagr_validation_path" if config.SELECTION_OBJECTIVE == config.SELECTION_OBJECTIVE_CAGR
+            else "selection_score_mean_sharpe")
+
+
+def selection_score(validation_by_fold: dict[int, dict]) -> float:
+    """What a threshold is chosen on, under the objective the experiment froze: the CAGR of the chained
+    validation path, or the mean of the folds' Sharpe ratios. One rule for the stage and for the search, so
+    the chain and the search can never choose a different threshold for the same predictions."""
+    if config.SELECTION_OBJECTIVE == config.SELECTION_OBJECTIVE_CAGR:
+        return validation_path_block(validation_by_fold)["cagr"]
+    return float(np.mean([result["sharpe"] for result in validation_by_fold.values()]))
+
+
 def entry_edge_threshold_selection(simulation_inputs: dict) -> dict:
-    """The entry edge threshold chosen on the validation folds — the grid point maximising the mean fold Sharpe
-    among those clearing the trade floor, ties to the smaller threshold, the grid floor when none clears it — with
-    the fold results at that point. The one selection the stage and the coordinate search both run."""
+    """The entry edge threshold chosen on the validation folds — the grid point maximising the frozen
+    objective among those clearing the trade floor, ties to the smaller threshold, the grid floor when none
+    clears it — with the fold results at that point and the path they chain into. The one selection the
+    stage and the coordinate search both run."""
     validation_rows = {fold_id: signals_for_fold(simulation_inputs, fold_id)
                        for fold_id in config.VALIDATION_FOLD_IDS}
     validation_bounds = {fold_id: validation.fold_bounds(fold_id)
                          for fold_id in config.VALIDATION_FOLD_IDS}
 
-    # the locals carry the names of the keys they end up as
-    entry_edge_threshold, selection_score_mean_sharpe = None, -np.inf
+    entry_edge_threshold, chosen_score = None, -np.inf
     validation_by_fold, entry_edge_threshold_constraint_met = None, False
     results_at_grid_floor = None                     # kept for the fallback below
     for threshold in config.ENTRY_EDGE_THRESHOLD_GRID:
@@ -281,20 +321,20 @@ def entry_edge_threshold_selection(simulation_inputs: dict) -> dict:
                for r in results_by_fold.values()):
             continue
         entry_edge_threshold_constraint_met = True
-        score = float(np.mean([r["sharpe"] for r in results_by_fold.values()]))
-        if score > selection_score_mean_sharpe:      # strict: ties keep the smaller threshold
-            entry_edge_threshold, selection_score_mean_sharpe = threshold, score
+        score = selection_score(results_by_fold)
+        if score > chosen_score:                     # strict: ties keep the smaller threshold
+            entry_edge_threshold, chosen_score = threshold, score
             validation_by_fold = results_by_fold
     if not entry_edge_threshold_constraint_met:      # deterministic fallback, reported as such
         entry_edge_threshold = config.ENTRY_EDGE_THRESHOLD_GRID[0]
         validation_by_fold = results_at_grid_floor
-        selection_score_mean_sharpe = float(
-            np.mean([r["sharpe"] for r in validation_by_fold.values()]))
+        chosen_score = selection_score(validation_by_fold)
     return {
         "entry_edge_threshold": entry_edge_threshold,
         "entry_edge_threshold_constraint_met": entry_edge_threshold_constraint_met,
-        "selection_score_mean_sharpe": selection_score_mean_sharpe,
+        selection_score_key(): chosen_score,
         "validation_by_fold": validation_by_fold,
+        "validation_path": validation_path_block(validation_by_fold),
     }
 
 
@@ -315,10 +355,11 @@ def main() -> int:
         payload = {
             "entry_edge_threshold": entry_edge_threshold,
             "entry_edge_threshold_constraint_met": selection["entry_edge_threshold_constraint_met"],
-            "selection_score_mean_sharpe": selection["selection_score_mean_sharpe"],
+            selection_score_key(): selection[selection_score_key()],
             "execution_cost_rate_per_trade_side": config.EXECUTION_COST_RATE_PER_TRADE_SIDE,
             "validation": {f"fold_{fold_id}": pnl_block(r)
                            for fold_id, r in selection["validation_by_fold"].items()},
+            "validation_path": selection["validation_path"],
             "final_holdout": {**pnl_block(final_holdout),
                               "equity_curve": equity_curve(final_holdout["equity_1m"])},
         }

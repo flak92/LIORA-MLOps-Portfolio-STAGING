@@ -6,7 +6,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 
-from . import config, coordinate_search, dataset
+from . import config, coordinate_search, dataset, hpo, strategy as strategy_module
 
 EQUITY_CURVE_DOWNSAMPLE_INTERVAL_DAYS = 7          # daily equity grid -> weekly points for the sparkline
 
@@ -27,7 +27,7 @@ def sample_block(metrics: dict) -> dict:
 def hyperparameter_search_result_block(hyperparameter_search_result: dict) -> dict:
     return {
         "trial_count": hyperparameter_search_result["trial_count"],
-        "best_logloss": round(hyperparameter_search_result["best_logloss"], 6),
+        hpo.objective_key(): round(hyperparameter_search_result[hpo.objective_key()], 6),
         "best_params": dict(sorted(hyperparameter_search_result["best_params"].items())),
     }
 
@@ -59,7 +59,10 @@ def equity_curve_block(curve: dict, final_equity: float) -> dict:
 def _pnl_block(block: dict) -> dict:
     return {
         "sharpe": round(block["sharpe"], 3),
+        "cagr": round(block["cagr"], 6),
         "max_drawdown": round(block["max_drawdown"], 4),
+        "calmar": round(block["calmar"], 4),
+        "profit_factor": config.rounded(block["profit_factor"], 4),
         "trade_count": block["trade_count"],
         "hit_rate": config.rounded(block["hit_rate"], 4),
         "average_trade_return": config.rounded(block["average_trade_return"], 6),
@@ -75,9 +78,11 @@ def strategy_block(strategy: dict) -> dict:
         "entry_edge_threshold": strategy["entry_edge_threshold"],
         "entry_edge_threshold_constraint_met":
             strategy["entry_edge_threshold_constraint_met"],
-        "selection_score_mean_sharpe": config.rounded(strategy["selection_score_mean_sharpe"], 3),
+        strategy_module.selection_score_key(): config.rounded(strategy[strategy_module.selection_score_key()], 6),
         "execution_cost_rate_per_trade_side": strategy["execution_cost_rate_per_trade_side"],
         "validation": {k: _pnl_block(v) for k, v in sorted(strategy["validation"].items())},
+        "validation_path": {k: config.rounded(v, 6) if isinstance(v, float) or v is None else v
+                            for k, v in sorted(strategy["validation_path"].items())},
         "final_holdout": _pnl_block(final_holdout),
         "equity_curve": equity_curve_block(final_holdout["equity_curve"],
                                    final_holdout["final_equity"]),
@@ -93,11 +98,16 @@ def proposal_block(proposal: dict) -> dict:
         "removed_columns_by_timeframe": proposal["removed_columns_by_timeframe"],
         "mean_relative_logloss_skill": round(proposal["mean_relative_logloss_skill"], 6),
         "validation": {fold: {"relative_logloss_skill": round(block["relative_logloss_skill"], 6),
-                              "sharpe": round(block["sharpe"], 3), "trade_count": block["trade_count"]}
+                              "sharpe": round(block["sharpe"], 3),
+                              "cagr": round(block["cagr"], 6), "calmar": round(block["calmar"], 4),
+                              "profit_factor": config.rounded(block["profit_factor"], 4),
+                              "trade_count": block["trade_count"]}
                        for fold, block in sorted(proposal["validation"].items())},
+        "validation_path": {k: config.rounded(v, 6) if isinstance(v, float) or v is None else v
+                            for k, v in sorted(proposal["validation_path"].items())},
         "entry_edge_threshold": proposal["entry_edge_threshold"],
         "entry_edge_threshold_constraint_met": proposal["entry_edge_threshold_constraint_met"],
-        "selection_score_mean_sharpe": config.rounded(proposal["selection_score_mean_sharpe"], 3),
+        strategy_module.selection_score_key(): config.rounded(proposal[strategy_module.selection_score_key()], 6),
     }
 
 
@@ -119,16 +129,19 @@ def coordinate_search_block(ticker: str, best_params: dict, active_columns_by_ti
     if not path.exists():
         return None
     search = dataset.load_json(path)
+    inputs_current = profile_path.exists() and search["inputs"] == dataset.to_json_safe(
+        coordinate_search.build_search_inputs(best_params, active_columns_by_timeframe, active_barriers,
+                                              cat, dataset.load_json(profile_path)))
     return {
         "trial_count": len(search["trials"]),
         "trial_count_by_loop": dict(sorted(search["trial_count_by_loop"].items())),
         "round_count": search["round_count"],
         "search_converged": search["search_converged"],
         "champion_trial": search["champion_trial"],
-        "inputs_current": profile_path.exists() and search["inputs"] == dataset.to_json_safe(
-            coordinate_search.build_search_inputs(best_params, active_columns_by_timeframe, active_barriers,
-                                                  cat, dataset.load_json(profile_path))),
-        "proposals": [proposal_block(proposal) for proposal in search["proposals"]],
+        "inputs_current": inputs_current,
+        # a search whose inputs have gone describes another experiment, and its proposals are numbers of
+        # that one: the page shows none of them, and the snapshot publishes none either
+        "proposals": [proposal_block(proposal) for proposal in search["proposals"]] if inputs_current else [],
     }
 
 
@@ -283,7 +296,7 @@ Each of the {len(config.timeframes(cat))} catalogue parquets carries {barriers['
 
 ## Model
 
-Search: {hyperparameter_search_result['trial_count']} Optuna trials, best log-loss {hyperparameter_search_result['best_logloss']:.6f}. Winner: depth {best_params['max_depth']}, eta {best_params['eta']:.4f}, {best_params['num_boost_round']} rounds, subsample {best_params['subsample']:.3f}, colsample {best_params['colsample_bytree']:.3f}, min_child_weight {best_params['min_child_weight']}, lambda {best_params['lambda']:.4f}, alpha {best_params['alpha']:.4f}.
+Search: {hyperparameter_search_result['trial_count']} Optuna trials, best {hpo.objective_key()} {hyperparameter_search_result[hpo.objective_key()]:.6f}. Winner: depth {best_params['max_depth']}, eta {best_params['eta']:.4f}, {best_params['num_boost_round']} rounds, subsample {best_params['subsample']:.3f}, colsample {best_params['colsample_bytree']:.3f}, min_child_weight {best_params['min_child_weight']}, lambda {best_params['lambda']:.4f}, alpha {best_params['alpha']:.4f}.
 
 {markdown_table(["fold", "prior log-loss", "model log-loss", "rel. skill", "scored"], cls_rows)}
 

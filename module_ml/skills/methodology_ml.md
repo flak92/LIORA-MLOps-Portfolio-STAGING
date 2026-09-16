@@ -118,53 +118,116 @@ Warm-up: `WARMUP_TOP_TIMEFRAME_BARS` = 200 bars of the top timeframe —
 decision rows before `2021-02-03 08:00 UTC` are excluded everywhere; no NaN
 survives the warm-up (asserted, in `catalogue.build_catalogue`).
 
-**The coordinate search** (`make ml-coordinate-search`) is stepwise feature
-selection in the field's sense, run under the asset's frozen `best_params` and
-selecting on the model's own validation objective. A trial is one set: three
-boosters fitted before F2, F3 and F4 as § 6 fits them, scored as § 8 scores
-them — `relative_logloss_skill` per fold, the quantity the hyper-parameter
-search tunes — and, reported beside that and never selected on, the strategy's
-threshold selection of § 9 on their predictions: τ*, the fold Sharpes and trade
-counts, `selection_score_mean_sharpe`. Trial 1 is the active set, and
-reproduces the training stage's fold skills and the strategy stage's score bit
-for bit. A pass is one forward move — every set with one more column, in
-timeframe order and catalogue order; a candidate qualifies when its skill is
-higher than the champion's on **every** validation fold, and the highest mean
-skill among the qualifiers is accepted, ties to the earlier candidate — then
-one backward move — every set with one column fewer, never the last column of
-the set (a timeframe may empty: the trend gate reads the catalogue, not the
-set); a candidate qualifies at no worse skill on every fold, and the highest
-mean skill among the qualifiers is accepted, ties to the earlier candidate
-again. Every forward move raises every fold's skill and every backward move
-shrinks the set at no worse folds, so no
-set recurs and the search ends when a pass accepts nothing: `search_converged`.
-A set scored once is looked up, never fitted twice, and no booster is kept. Every
-scored trial is recorded in `<TICKER>_coordinate_search.json`, rewritten after
-each, so an interrupted run resumes at its next candidate and a finished run is
-read, not rewritten; its `inputs` — the window with its warm-up and seed,
-`best_params`, the catalogue's columns and the active set — are the one copy of
-other files' content an artifact carries, compared by equality when the stage
-is rerun and again by `ml-status`, which publishes `inputs_current`: a
-promotion, a retuning or a catalogue change leaves a recorded search describing
-a state that has gone, and the page then states that instead of comparing
-against a baseline it no longer has. The
-proposals are the sets a hand may promote: every trial no validation fold
-scores below the active set, by mean skill, ties to the smaller set, and the
-champion the search accepted, move by move, first among them when a pass
-accepted one — at most `COORDINATE_SEARCH_PROPOSAL_COUNT`.
-A set worse on any validation fold is never proposed, so the default
-`PROPOSAL=1` promotes the search's own answer. Their strategy numbers are
-reported beside them and were never selected on — τ is chosen once, by `ml-strategy`,
-after a promotion. The skill is conditional on the frozen `best_params`, which
-were tuned for the active set; a promotion (`make ml-coordinate-search-promote
-ASSET=<TICKER> PROPOSAL=<n>`, one asset at a time, never fanned out) copies a
-proposal's columns into `<TICKER>_feature_set.json` — the columns and nothing
-else; the commit history is the record of every promotion — and reruns the
-chain, `ml-hpo` included, so the promoted set is re-tuned, its realised result
-differs from the search's, and the next search starts from trial 1. The same
-proposal promoted twice changes nothing. Selection overfitting is bounded and
-exposed, never absent: a move is accepted only by every fold, the catalogue is
-small, and the trial count stands on the page beside every proposal.
+**The coordinate search** (`make ml-coordinate-search`) is a beam over the
+coordinates of a state Θ, run under the profile a hand drafted and the asset's
+frozen `best_params`, and selecting on what the strategy realised rather than on
+what the model predicted. The coordinates are the asset's feature set, its
+barrier geometry — the multiplier its label barriers stand at, the horizon they
+stand for, and the take-profit and stop its **trades** leave at — and, in its own
+loop, the hyper-parameters. A trial is one whole state: three boosters fitted
+before F2, F3 and F4 as § 6 fits them, scored as § 8 scores them, and then the
+threshold selection of § 9 on their predictions, which gives the fold's realised
+CAGR, its maximum drawdown, its Calmar ratio, its profit factor and its trade
+count.
+
+**The goal is the validation path, the unit of robustness is the fold.** The
+three out-of-fold equity curves are chained into one walk-forward path — each
+scaled by what the folds before it settled at — and `validation_path.cagr`, the
+growth rate of that path, is what a move has to raise. A position never crosses a
+fold boundary (§ 9's eligibility requires the whole horizon inside the fold), so
+the chaining is exact, and a drawdown that begins in December and ends in January
+is counted as it happened. The **gate** is separate and is per fold: a move is
+considered only where the Calmar ratio of **every** validation fold is higher
+than its parent's — no worse, for a move that shrinks the state — and only where
+the chosen threshold cleared the trade floor in every fold. The gate has no goal
+of its own; it says which moves may be ranked at all, and the ranking is then
+`validation_path.cagr`, its Calmar ratio, its profit factor, the smaller state,
+the earlier trial. What the gate guarantees is that drawdown **relative to
+growth** never worsens on any of the three years; it does not guarantee a smaller
+drawdown in absolute terms.
+
+A **round** applies each loop the profile names, once, in the frozen order
+`barrier`, `feature_set`, `hpo`. A loop's **pass** expands the beam one **family**
+at a time, each family seeded by the beam the family before it left: the
+`feature_set` loop's families are one forward move — every state with one more
+admitted column, in timeframe order and catalogue order — and then one backward
+move — every state with one column fewer, never the last of the set; the
+`barrier` loop's are the trade's own exit first and the label's geometry second,
+because a move of the trade's exit changes neither a fit nor a prediction and can
+be scored on the material its parent is still holding, while a move of the
+label's geometry writes Y again. The beam keeps the best
+`COORDINATE_SEARCH_BEAM_WIDTH` **distinct** qualifying children of each family;
+two parents can reach one state, and it is one member. A round that keeps nothing
+is convergence — `search_converged` — and the state it stops at is
+*coordinate-wise locally optimal*: no single legal move improves it. That is not
+a global optimum and the file does not claim one.
+
+A state scored once is looked up, never fitted twice, and no booster is kept.
+Every scored state is recorded in `<TICKER>_coordinate_search.json`, rewritten
+after each, so an interrupted run resumes at the top of its round and a finished
+run is read, not rewritten; its `inputs` — the window with its warm-up and seed,
+`best_params`, the catalogue's columns, the asset's own state, the profile and
+the selection the experiment froze — are the one copy of other files' content an
+artifact carries, compared by equality when the stage is rerun and again by
+`ml-status`, which publishes `inputs_current`. The selection is in there because
+flipping the objective is a different experiment, not a different mood: without
+it a rerun under the other objective would resume this one's trials under rules
+they were not scored by. A promotion, a retuning, a catalogue change or an edited
+profile leaves a recorded search describing a state that has gone, and the page
+then states that instead of comparing against a baseline it no longer has.
+
+**What a round costs**, measured on BTC with a beam of three, all three loops and
+the whole catalogue admitted — the search that converged in two rounds and 59
+scored states, 250.5 s in all:
+
+| round | loop / family | children | seconds | s / child |
+|---|---|---|---|---|
+| 1 | `barrier` / trade | 4 | 9.3 | 2.32 |
+| 1 | `barrier` / label | 4 | 18.3 | 4.56 |
+| 1 | `feature_set` / forward | 7 | 32.1 | 4.59 |
+| 1 | `feature_set` / backward | 15 | 66.9 | 4.46 |
+| 2 | `barrier` / trade | 3 | 12.3 | 4.10 |
+| 2 | `barrier` / label | 4 | 18.6 | 4.65 |
+| 2 | `feature_set` / forward | 8 | 31.7 | 3.96 |
+| 2 | `feature_set` / backward | 14 | 61.5 | 4.39 |
+
+A child that only moved the trade's exit costs about half a full state, not a
+tenth: three fits are saved, but the threshold grid — 61 points over three folds
+— is replayed either way and is what a child of that family mostly is. The
+`hpo` loop appears in neither round because its study kept nothing: its one
+candidate is warm-started at the state's own point, and here that point won.
+
+The proposals are the states a hand may promote: every trial no validation fold
+scores below the state the search started from, by the ranking above, and the
+champion the search accepted first among them.
+A state worse on any validation fold is never proposed, so the default
+`PROPOSAL=1` promotes the search's own answer. The model's own skill is reported
+beside them and was not selected on. A promotion
+(`make ml-coordinate-search-promote ASSET=<TICKER> PROPOSAL=<n>`, one asset at a
+time, never fanned out) copies a proposal's columns into
+`<TICKER>_feature_set.json` and its barrier geometry into
+`<TICKER>_barriers.json` — those and nothing else; the commit history is the
+record of every promotion — and reruns the chain, `ml-hpo` included, so the
+promoted state is re-tuned, its realised result differs from the search's, and
+the next search starts from trial 1. The same proposal promoted twice changes
+nothing.
+
+Selection overfitting is bounded and exposed, never absent: a move is accepted
+only by every one of three independent years, under a trade floor that keeps a
+fold's CAGR and Calmar from standing on a handful of trades, the catalogue is
+small, and the trial count — in all and per loop — stands on the page beside
+every proposal. Two things are worth saying plainly rather than guarding
+against. The objective is now a strategy number measured on 30 to a few hundred
+trades a fold, where the model's own skill stood on some 10⁴ decisions, so it is
+the noisier quantity; the per-fold gate and the floor are what hold that in
+check, and the skill is reported beside it so a state that wins on CAGR while
+losing skill is visible in `path[]` by eye. And a move of the label's horizon
+changes the supervised population itself — a longer horizon drops more of each
+fold's tail and moves the purge — so parent and child are scored on row sets that
+differ at the edges; the difference is bounded by the horizon and the purge
+width, the comparison is still made on the same calendar window and the same
+capital, and that is a property of the coordinate rather than an accident of the
+code.
 
 ## 5. Labels
 
@@ -278,15 +341,38 @@ model, call the same fold out-of-sample again.
 
 ## 7. Hyper-parameter search
 
-Optuna TPE (`seed = 42`), 3 sequential trials, in-memory study. Objective =
-mean **uniqueness-weighted** multiclass log-loss over the three OOS validation
-folds F2–F4. Space: `max_depth` 2–6, `eta` log 0.01–0.3, `min_child_weight`
+Optuna TPE (`seed = 42`), 3 sequential trials, in-memory study. The objective is
+the one `SELECTION_OBJECTIVE` names, so the parameters are tuned on the quantity
+the search selects on: the CAGR of the validation path at the threshold § 9's
+rule would pick, maximised — or, under the model's own objective, the mean
+**uniqueness-weighted** multiclass log-loss over F2–F4, minimised. The stage
+starts from the point it last chose, so a rerun after a promotion begins where
+the asset already is. Space: `max_depth` 2–6, `eta` log 0.01–0.3, `min_child_weight`
 1–50, `subsample` 0.5–1, `colsample_bytree` 0.5–1, `lambda` log 0.1–10,
 `alpha` log 0.01–1, `num_boost_round` 50–100 step 50. Fixed:
 `multi:softprob`, `num_class = 3`, `tree_method = hist`, `nthread = 1`,
-`seed = 42`, no early stopping. Label parameters, costs and the entry-edge-threshold grid are **never** in the
-space. The `hyperparameter_search_result` section of `<TICKER>_parameters.json` keeps the
-chosen point, its log-loss and the trial count.
+`seed = 42`, no early stopping. The barrier geometry, the costs and the
+entry-edge-threshold grid are **never** in the space: the geometry is a
+coordinate of § 4's search and is promoted, not tuned. The
+`hyperparameter_search_result` section of `<TICKER>_parameters.json` keeps the
+chosen point, its value under the frozen objective and the trial count.
+
+Inside a coordinate search the study is itself a coordinate — one candidate per
+beam member, warm-started at the point that member already holds, so it can never
+answer worse than where it began. Two explicit gates stop a trial early. After
+each validation fold the trial reports what it reached, and then, for the Calmar
+ratio and for the growth rate in turn, the best that fold could still reach — the
+maximum over the whole threshold grid among the points clearing the trade floor —
+is compared with the champion's own value on that fold; if it cannot beat it, the
+trial stops. The compared quantity is an **upper bound** on what the trial can
+still realise there, so a gate can never discard a trial the search would have
+kept, and it fires on the first fold that settles the question. Optuna's median
+pruner is not one of these gates and is not used: it compares a trial's best
+intermediate value across all of its steps with the median of other trials at one
+step, and with folds as calendar years that is not a comparison of like with
+like. When every trial of a study is stopped, the loop keeps nothing that round —
+which is an answer, not a failure. Every point drawn still reaches the ledger: a
+stopped trial carries the last fold it reported.
 
 ## 8. Classification metric — relative log-loss skill against the training prior
 
@@ -349,25 +435,61 @@ A short from 100 to 80 returns exactly +20 %, and the path 100 → 50 → 100
 returns 0 %. Compounding per-bar returns instead — `Π(1 + s·r_t)` — returns
 −100 % on that path; that is the arithmetic this formula replaces.
 
+**A trade leaves where it chooses, not where the label did.** The label stays
+symmetric — `entry ± m·σ`, the same on both sides — because that is how a
+direction is learned. A trade has its own exit: for a long the take-profit at
+`tp·σ` above the entry and the stop at `sl·σ` below it, mirrored for a short,
+with the same vertical barrier. Both are found by the same walk down the 1m path
+that wrote Y (§ 5), for the entries the gate admits, so "the first barrier
+touched" has one definition in this repository and one guard on `volume > 0`. In
+code the trade's barriers are the **label's own half-widths rescaled** —
+`entry + (tp/m)·(upper − entry)` and `entry − (sl/m)·(entry − lower)` — and not a
+σ recovered from one of them: at `tp = sl = m` the scale is exactly one and the
+trade's barriers are the label's to the bit, for every `m`, whereas one recovered
+σ reproduces the upper barrier and misses the lower by a unit in the last place
+on about 2 % of BTC's rows. A position's occupancy runs to the end of the
+**trade's** event, so a tighter stop frees the capital sooner, which is the point
+of searching the two multipliers at all.
+
 **Fills acknowledge that 1m OHLC hides the tick path.** A take-profit fills at
 the barrier. A stop fills at the *worse* of the barrier and the open of the
 minute that touched it (`long: min(lower_barrier, open)`, `short: max(upper_barrier, open)`),
-which is also how the adverse side of an ambiguous minute is settled. Without
+which is also how a minute that touched both is settled — the order inside a
+minute is unknowable, so the trade takes the adverse side. Without
 that rule a bar-based backtest silently assumes every gap fills at the barrier.
 
 **The entry edge threshold `τ` is chosen on F2–F4 only**, by an explicit rule:
 
 ```
-τ* = argmax_τ  mean( Sharpe_F2(τ), Sharpe_F3(τ), Sharpe_F4(τ) )
+τ* = argmax_τ  CAGR( E_F2(τ) ⌢ E_F3(τ) ⌢ E_F4(τ) )
      subject to  trades_f(τ) ≥ MINIMUM_TRADES_PER_VALIDATION_FOLD = 30  for every f ∈ {F2, F3, F4}
      ties → the smaller τ
 ```
 
-The trade floor is a **selection guardrail, not an acceptance gate**: without
-it a threshold producing three or five trades with an accidentally high Sharpe
-wins over a strategy that actually trades. If no threshold on the 0.00–0.60
-grid meets it, the run falls back to `τ = 0` and reports
-`entry_edge_threshold_constraint_met = false`.
+where `⌢` is the chaining of § 4: each fold's 1-minute equity scaled by what the
+folds before it settled at, so the three years are one walk-forward path and its
+CAGR is the growth of one capital through them. The rule is keyed by
+`SELECTION_OBJECTIVE` — under the model's own objective it maximises the mean of
+the folds' Sharpe ratios instead — and it is the **same function** the stage and
+the coordinate search both call, so the chain and the search can never choose a
+different threshold for the same predictions.
+
+The trade floor keeps a threshold from winning on three or five trades with an
+accidentally high number. If no threshold on the 0.00–0.60 grid meets it, the run
+falls back to `τ = 0` and reports
+`entry_edge_threshold_constraint_met = false`; the coordinate search refuses such
+a state before it ranks it, because its numbers stand at a threshold nothing
+qualified for.
+
+**A fold's own numbers, and the path they chain into.** From the same 1-minute
+equity a fold reports its CAGR — `final_equity ** (MINUTES_PER_YEAR / minutes) − 1`,
+a 24/7 year of 365 days, so F4 being a leap year makes its exponent slightly
+under one rather than being idealised away — its maximum drawdown, their ratio as
+the Calmar ratio, its profit factor over the trades it took, and its trade count.
+The three validation folds chain into `validation_path`, which carries the same
+five for the path as a whole. The path's maximum drawdown is at least the largest
+of the folds' own, because a drawdown may run across a year boundary; that is the
+point of chaining rather than averaging.
 
 **Sharpe and drawdown come from one equity process sampled two ways.** The
 backtest writes a continuous 1-minute equity path starting at `E₀ = 1`; the

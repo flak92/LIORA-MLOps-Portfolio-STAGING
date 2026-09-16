@@ -1,15 +1,15 @@
 {
  "hyperparameter_search_result": {
-  "best_logloss": 0.8154516311617671,
+  "best_cagr_validation_path": 0.013659561760937189,
   "best_params": {
-   "alpha": 0.03839629299804171,
-   "colsample_bytree": 0.8059264473611898,
-   "eta": 0.05958389350068958,
-   "lambda": 0.19010245319870356,
+   "alpha": 0.01306673923805328,
+   "colsample_bytree": 0.5780093202212182,
+   "eta": 0.2536999076681772,
+   "lambda": 0.2051110418843398,
    "max_depth": 3,
-   "min_child_weight": 22,
-   "num_boost_round": 50,
-   "subsample": 0.645614570099021
+   "min_child_weight": 37,
+   "num_boost_round": 100,
+   "subsample": 0.7993292420985183
   },
   "trial_count": 3
  }

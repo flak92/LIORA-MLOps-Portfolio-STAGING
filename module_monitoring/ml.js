@@ -145,22 +145,29 @@ function renderClassification(mlStatus) {
 
 function renderStrategy(mlStatus) {
   renderTable("cs-strategy",
-    ["asset", "entry edge threshold", "constraint met", "selection score", "holdout Sharpe", "degradation",
+    ["asset", "entry edge threshold", "constraint met", "selection score", "path CAGR", "path Calmar",
+     "path maxDD", "path PF", "holdout CAGR", "degradation", "holdout Sharpe",
      "maxDD", "trades", "hit", "avg trade", "exposure", "final equity",
      "exits: upper/lower/vertical/ambiguous"],
     mlStatus.assets.map((asset) => {
       const finalHoldoutStrategy = asset.strategy.final_holdout;
-      const selectionScore = asset.strategy.selection_score_mean_sharpe;
-      const holdoutDegradation = finalHoldoutStrategy.sharpe === null || selectionScore === null
-        ? null : finalHoldoutStrategy.sharpe - selectionScore;
+      const validationPath = asset.strategy.validation_path;
+      const selectionScore = asset.strategy.selection_score_cagr_validation_path;
+      const holdoutDegradation = finalHoldoutStrategy.cagr === null || validationPath.cagr === null
+        ? null : finalHoldoutStrategy.cagr - validationPath.cagr;
       const exitCounts = finalHoldoutStrategy.exit_counts;
       return [
         buildTickerLink(asset.ticker, selectAsset),
         asset.strategy.entry_edge_threshold.toFixed(2),
         asset.strategy.entry_edge_threshold_constraint_met ? "yes" : "fallback",
-        formatNumber(selectionScore, 2),
+        formatPercent(selectionScore, 2),
+        formatPercent(validationPath.cagr, 2),
+        formatNumber(validationPath.calmar, 2),
+        formatPercent(validationPath.max_drawdown, 1),
+        formatNumber(validationPath.profit_factor, 2),
+        formatPercent(finalHoldoutStrategy.cagr, 2),
+        holdoutDegradation === null ? "-" : (holdoutDegradation >= 0 ? "+" : "") + (100 * holdoutDegradation).toFixed(2) + " pp",
         formatNumber(finalHoldoutStrategy.sharpe, 2),
-        holdoutDegradation === null ? "-" : (holdoutDegradation >= 0 ? "+" : "") + holdoutDegradation.toFixed(2),
         formatPercent(finalHoldoutStrategy.max_drawdown, 1),
         formatCount(finalHoldoutStrategy.trade_count),
         formatPercent(finalHoldoutStrategy.hit_rate, 1),
@@ -174,14 +181,14 @@ function renderStrategy(mlStatus) {
 
 function renderSearch(mlStatus) {
   renderTable("cs-search",
-    ["asset", "trials", "best LL", "depth", "eta",
+    ["asset", "trials", "best path CAGR", "depth", "eta",
      "min child", "subsample", "colsample", "lambda", "alpha", "rounds"],
     mlStatus.assets.map((asset) => {
       const bestParameters = asset.hyperparameter_search_result.best_params;
       return [
         buildTickerLink(asset.ticker, selectAsset),
         asset.hyperparameter_search_result.trial_count,
-        asset.hyperparameter_search_result.best_logloss.toFixed(4),
+        formatPercent(asset.hyperparameter_search_result.best_cagr_validation_path, 2),
         bestParameters.max_depth,
         bestParameters.eta.toFixed(4),
         bestParameters.min_child_weight,

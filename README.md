@@ -335,8 +335,13 @@ layer; `module_ml/` takes the fifteen columns of the default set as X until a
 promotion, triple-barrier labels resolved on the canonical 1-minute path, a
 purged walk-forward protocol with average-uniqueness weights and an Optuna
 search over XGBoost, a final out-of-sample fold that selects nothing, and a
-top-down gated strategy with explicit costs. The decision is taken at a 15m
-close and filled one minute later. Every per-asset stage runs `JOBS` assets in
+top-down gated strategy with explicit costs, whose trades leave at their own
+take-profit and stop while the label they learned from stays symmetric. Beside
+the chain, a coordinate search moves the asset's feature set and its barrier
+geometry one step at a time, on the three validation years only: it raises the
+CAGR of those years chained into one walk-forward path, and it may only keep a
+move that raises the Calmar ratio of every one of them. The decision is taken at
+a 15m close and filled one minute later. Every per-asset stage runs `JOBS` assets in
 parallel, one process each, thread caps at one. Every asset folder describes
 itself in `<TICKER>_README.md`. Full methodology:
 `module_ml/skills/methodology_ml.md`.

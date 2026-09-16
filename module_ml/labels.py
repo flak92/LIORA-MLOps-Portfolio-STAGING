@@ -153,63 +153,78 @@ def write_y(ticker: str, cat: dict, cols: dict[str, np.ndarray]) -> Path:
     )
 
 
+def load_label_inputs(ticker: str, cat: dict) -> dict:
+    """Everything Y is built from, read once: the canonical 1m series, the grid of the decision timeframe
+    and the bars whose ATR sets the barrier width. A search that relabels an asset holds these and calls
+    label_events() again; the stage reads them and calls it once."""
+    con = duckdb.connect(str(config.research_ohlcv_duckdb(ticker)), read_only=True)
+    con.execute(f"SET memory_limit='{config.DUCKDB_MEMORY_LIMIT}'")
+    con.execute("SET threads=1")   # float summation must not be reordered
+    barrier_bars = con.execute(
+        f"""SELECT timestamp_ms, high, low, close FROM ohlcv_{config.LABEL_BARRIER_ATR_TIMEFRAME}_canonical
+            ORDER BY timestamp_ms"""
+    ).fetchnumpy()
+    decision_grid = con.execute(
+        f"""SELECT timestamp_ms FROM ohlcv_{cat['decision_timeframe']}_canonical
+            ORDER BY timestamp_ms"""
+    ).fetchnumpy()["timestamp_ms"].astype(np.int64)
+    bars_1m = load_research_1m(con)
+    con.close()
+    return {"bars_1m": bars_1m, "decision_grid": decision_grid, "barrier_bars": barrier_bars}
+
+
+def label_events(label_inputs: dict, cat: dict, barriers: dict) -> dict[str, np.ndarray]:
+    """Y for one asset under one barrier geometry: the decisions whose whole horizon fits the research
+    window, the symmetric barriers the multiplier sets, the walk down the 1m path, and the columns the
+    parquet carries. A move of the label's geometry moves this population — a longer horizon drops more of
+    the tail — which is a property of the coordinate, not an accident of the code."""
+    bars_1m, barrier_bars = label_inputs["bars_1m"], label_inputs["barrier_bars"]
+    horizon_minutes = barriers["horizon_minutes"]
+    decision_ts = label_inputs["decision_grid"][label_inputs["decision_grid"] >= cat["warmup_end_ms"]]
+    entry_ts = decision_ts + config.MILLISECONDS_PER_MINUTE
+    keep = entry_ts + horizon_minutes * config.MILLISECONDS_PER_MINUTE <= config.RESEARCH_END_MS
+    decision_ts, entry_ts = decision_ts[keep], entry_ts[keep]
+
+    barrier_atr = atr(barrier_bars["high"], barrier_bars["low"], barrier_bars["close"],
+                      config.ATR_WILDER_SMOOTHING_PERIOD_BARS)
+    sigma = barrier_atr[asof_index(decision_ts,
+                                   barrier_bars["timestamp_ms"].astype(np.int64),
+                                   config.timeframe_entry(cat, config.LABEL_BARRIER_ATR_TIMEFRAME)["duration_ms"])]
+    assert np.isfinite(sigma).all() and (sigma > 0).all(), \
+        f"ATR{config.ATR_WILDER_SMOOTHING_PERIOD_BARS} of the last closed {config.LABEL_BARRIER_ATR_TIMEFRAME} bar is not finite and positive at every decision"
+
+    entry_price = bars_1m["open"][entry_rows(entry_ts)]
+    upper_barrier, lower_barrier = label_barriers(entry_price, sigma, barriers["atr_barrier_multiplier"])
+    y, t_res, event_resolution, exit_reference_price = triple_barrier(
+        bars_1m, entry_ts, upper_barrier, lower_barrier, horizon_minutes)
+    return {
+        "decision_ts": decision_ts, "entry_ts": entry_ts, "y": y,
+        "event_end_ts": event_end_ts(entry_ts, t_res, horizon_minutes),
+        "entry_observable": bars_1m["volume"][entry_rows(entry_ts)] > 0,
+        "label_valid": event_resolution != config.EVENT_RESOLUTION_AMBIGUOUS,
+        "event_resolution": event_resolution, "entry_price": entry_price,
+        "upper_barrier": upper_barrier, "lower_barrier": lower_barrier,
+        "exit_reference_price": exit_reference_price,
+        "t_res": t_res,                        # the walk's own, for the stage's count of vertical exits
+    }
+
+
 def main() -> int:
     args = config.build_ticker_parser("triple-barrier labels on the canonical 1m path").parse_args()
     for ticker in config.parse_tickers(args.tickers):
         cat = dataset.load_catalogue(ticker)
         barriers = dataset.load_barriers(ticker)
-        horizon_minutes = barriers["horizon_minutes"]
-        con = duckdb.connect(str(config.research_ohlcv_duckdb(ticker)), read_only=True)
-        con.execute(f"SET memory_limit='{config.DUCKDB_MEMORY_LIMIT}'")
-        con.execute("SET threads=1")   # float summation must not be reordered
-        barrier_bars = con.execute(
-            f"""SELECT timestamp_ms, high, low, close FROM ohlcv_{config.LABEL_BARRIER_ATR_TIMEFRAME}_canonical
-                ORDER BY timestamp_ms"""
-        ).fetchnumpy()
-        ts_15m = con.execute(
-            f"""SELECT timestamp_ms FROM ohlcv_{cat['decision_timeframe']}_canonical
-                ORDER BY timestamp_ms"""
-        ).fetchnumpy()["timestamp_ms"].astype(np.int64)
+        cols = label_events(load_label_inputs(ticker, cat), cat, barriers)
 
-        decision_ts = ts_15m[ts_15m >= cat["warmup_end_ms"]]
-        entry_ts = decision_ts + config.MILLISECONDS_PER_MINUTE
-        keep = entry_ts + horizon_minutes * config.MILLISECONDS_PER_MINUTE <= config.RESEARCH_END_MS
-        decision_ts, entry_ts = decision_ts[keep], entry_ts[keep]
-
-        barrier_atr = atr(barrier_bars["high"], barrier_bars["low"], barrier_bars["close"],
-                          config.ATR_WILDER_SMOOTHING_PERIOD_BARS)
-        sigma = barrier_atr[asof_index(decision_ts,
-                                       barrier_bars["timestamp_ms"].astype(np.int64),
-                                       config.timeframe_entry(cat, config.LABEL_BARRIER_ATR_TIMEFRAME)["duration_ms"])]
-        assert np.isfinite(sigma).all() and (sigma > 0).all(), \
-            f"ATR{config.ATR_WILDER_SMOOTHING_PERIOD_BARS} of the last closed {config.LABEL_BARRIER_ATR_TIMEFRAME} bar is not finite and positive at every decision"
-
-        bars_1m = load_research_1m(con)
-        con.close()
-        entry_price = bars_1m["open"][entry_rows(entry_ts)]
-        upper_barrier, lower_barrier = label_barriers(entry_price, sigma, barriers["atr_barrier_multiplier"])
-        y, t_res, event_resolution, exit_reference_price = triple_barrier(
-            bars_1m, entry_ts, upper_barrier, lower_barrier, horizon_minutes)
-
-        entry_observable = bars_1m["volume"][entry_rows(entry_ts)] > 0
-        label_valid = event_resolution != config.EVENT_RESOLUTION_AMBIGUOUS
-        sample_valid = entry_observable & label_valid
-
-        out = write_y(ticker, cat, {
-            "decision_ts": decision_ts, "entry_ts": entry_ts, "y": y,
-            "event_end_ts": event_end_ts(entry_ts, t_res, horizon_minutes),
-            "entry_observable": entry_observable,
-            "label_valid": label_valid,
-            "event_resolution": event_resolution, "entry_price": entry_price,
-            "upper_barrier": upper_barrier, "lower_barrier": lower_barrier,
-            "exit_reference_price": exit_reference_price,
-        })
-        print(f"{ticker} {out.name}: {decision_ts.size} rows  classes(-1/0/+1)="
+        y, t_res = cols["y"], cols["t_res"]
+        sample_valid = cols["entry_observable"] & cols["label_valid"]
+        out = write_y(ticker, cat, cols)
+        print(f"{ticker} {out.name}: {cols['decision_ts'].size} rows  classes(-1/0/+1)="
               f"{int((y == -1).sum())}/{int((y == 0).sum())}/{int((y == 1).sum())}  "
-              f"ambiguous={int((~label_valid).sum())}  "
-              f"unobservable={int((~entry_observable).sum())}  "
+              f"ambiguous={int((~cols['label_valid']).sum())}  "
+              f"unobservable={int((~cols['entry_observable']).sum())}  "
               f"trainable={int(sample_valid.sum())}  "
-              f"vertical={int((t_res == horizon_minutes).sum())}", flush=True)
+              f"vertical={int((t_res == barriers['horizon_minutes']).sum())}", flush=True)
     return 0
 
 
