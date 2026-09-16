@@ -131,7 +131,7 @@ and is named for what the scan measured.
 | the research path — the expansions the search accepted, in order: which loop and family moved it, where it landed and what the beam held after | `path_entry()` | `path` | — | a history, a log, a trace; a path holding a move that was scored and rejected |
 | the state a move is measured against — its parent in the beam, not the champion of the loop | `parent_trial` | `parent_trial` | — | the champion, where the parent is meant |
 | the quantity every selection reads — the gate fold by fold, the ranking of a beam and of the proposals, the entry edge threshold's own choice and, once its loop is written, the hyper-parameters: one token, so one experiment moves all of them at once and a rerun under the other starts its own state | `SELECTION_OBJECTIVE`, `fold_objective()`, `state_objective()`, `is_gate_cleared()`, `ranking_key()` | `selection` (`objective`, `beam_width`), inside `inputs` | — | a selection rule keyed anywhere else; a threshold rule that disagrees with the search's; an objective read from the profile |
-| one scored state of the coordinate search — the whole of Θ, its objective per fold and over the state, what the strategy would do with it, and where the search was when it scored it | a row of `trials` | `trials`, each `columns_by_timeframe`, the four of `BARRIER_COORDINATE_NAMES`, `best_params`, `validation` (per fold `relative_logloss_skill`, `sharpe`, `trade_count`), `mean_relative_logloss_skill`, `entry_edge_threshold`, `entry_edge_threshold_constraint_met`, `selection_score_mean_sharpe`, `loop`, `family`, `move`, `round`, `parent_trial` | trial | candidate (as a key), step; a trial carrying only the coordinate that moved |
+| one scored state of the coordinate search — the whole of Θ, its objective per fold and over the state, what the strategy would do with it, and where the search was when it scored it | a line of the ledger | `trials`, each `columns_by_timeframe`, the four of `BARRIER_COORDINATE_NAMES`, `best_params`, `validation` (per fold `relative_logloss_skill`, `sharpe`, `trade_count`), `mean_relative_logloss_skill`, `entry_edge_threshold`, `entry_edge_threshold_constraint_met`, `selection_score_mean_sharpe`, `loop`, `family`, `move`, `round`, `parent_trial` | trial | candidate (as a key), step; a trial carrying only the coordinate that moved; a search state rewritten per trial |
 | the mean over the validation folds of a trial's relative log-loss skill — what the ranking maximises while `SELECTION_OBJECTIVE` is the model's own | `mean_relative_logloss_skill` | `mean_relative_logloss_skill` | mean skill; `Δ vs active` for a proposal's mean skill minus the active set's (`best proposal Δ skill` in the cross-section header, the first proposal's), page arithmetic printed in percentage points (`pp`) | score (the strategy's word for its own selection) |
 | the state the search stands on — the leader of the beam, moved once per loop after its families, and the one a proposals list puts first | `champion_trial` | `champion_trial` | — | incumbent, current best; a champion moved inside a family |
 | the direction a move is compared in — forward must be better on every fold, backward only no worse; the feature-set loop's two families carry the two names, and a move that cannot shrink a state is forward | `COORDINATE_SEARCH_MOVE_FORWARD`, `COORDINATE_SEARCH_MOVE_BACKWARD` | `move` = `forward` / `backward` | — (the stage's progress line prints them; no page shows a move) | add / drop, greedy, step; a margin, a ceiling or a floor on the count of columns |
@@ -289,9 +289,9 @@ timeframe slots, and paths are built only by the descriptors of
 (the rest); whether an asset holds its three result files is asked
 once, by `is_artifact_set_complete()` beside them.
 
-The fourteen manifest files in `LC_COLLATE=C` listing order — the order
+The fifteen manifest files in `LC_COLLATE=C` listing order — the order
 `file_manifest()` in `module_ml/status.py` and the generated README share; the
-four a hand's stages write are listed with no size until they exist:
+five a hand's stages write are listed with no size until they exist:
 
 | file | written by | holds |
 |---|---|---|
@@ -299,7 +299,8 @@ four a hand's stages write are listed with no size until they exist:
 | `<TICKER>_barriers.json` | `module_ml/coordinate_search_promote.py` | `atr_barrier_multiplier`, `label_horizon`, `take_profit_atr_multiplier`, `stop_loss_atr_multiplier` — the asset's promoted barrier geometry, a hand's choice; absent, the frozen constants of `module_ml/config.py` are the asset's; tracked, like the feature set beside it |
 | `<TICKER>_catalogue.json` | `module_features/catalogue.py` | the feature layer's contract the ML layer reads instead of the feature configuration: `decision_timeframe`, `timeframes` (each `timeframe`, `slot`, `duration_ms`), `warmup_top_timeframe_bars`, `warmup_end_ms`, `columns_by_timeframe`, `default_columns_by_timeframe`, `parquet_by_timeframe` |
 | `<TICKER>_feature_set.json` | `module_ml/coordinate_search_promote.py` | `columns_by_timeframe` — the promoted feature set, a hand's choice, and nothing else; absent, the default set is the asset's; tracked, like the parameters it conditions |
-| `<TICKER>_coordinate_search.json` | `module_ml/coordinate_search.py` | `inputs`, `trials`, `beam`, `champion_trial`, `round_count`, `trial_count_by_loop`, `search_converged`, `path`, `proposals` — every scored state, the search's own state, rewritten after every scored trial; present once a search has run |
+| `<TICKER>_coordinate_search.json` | `module_ml/coordinate_search.py` | `inputs`, `beam`, `champion_trial`, `round_count`, `search_converged`, `path`, `proposals` — where the search stands at the end of a round, written there and nowhere else; present once a round has ended |
+| `<TICKER>_coordinate_search_trials.jsonl` | `module_ml/coordinate_search.py` | the search's ledger: one scored state a line, appended and never rewritten; a line's number is the trial's index, and the trial's number — what `champion_trial`, `beam` and `parent_trial` carry — is that index plus one. How many trials each loop scored is counted off it and carried nowhere |
 | `<TICKER>_coordinate_search_profile.json` | a hand, in the file or through the sub-module's TUI | `columns_admitted_by_timeframe`, `start_columns_by_timeframe` (`null` = the asset's own set), `grid_by_coordinate` (one list per coordinate, in the order it is searched), `loops` (a subset of `COORDINATE_SEARCH_ROUND_LOOPS`) — what a hand asks the search to look at; drafted, never derived, and tracked |
 | `<TICKER>_features_ss-15-hh-dd-MM.parquet` | `module_features/catalogue.py` | the catalogue on 15m — `decision_ts` and every definition offered on 15m, on the decision grid |
 | `<TICKER>_features_ss-mm-01-dd-MM.parquet` | `module_features/catalogue.py` | the catalogue on 1h — `decision_ts` and every definition offered on 1h |
@@ -315,8 +316,8 @@ hand has drafted one `<TICKER>_coordinate_search_profile.json`, and once a hand
 has promoted one `<TICKER>_feature_set.json` and `<TICKER>_barriers.json`:
 together they make a folder readable, and reproducible, without a run, because
 the parameters are tuned for the state they were searched under. The nine others
-are regenerable — the eight the chain rebuilds from the database, and the search
-result a hand reruns. Beside the manifest, outside it, `<TICKER>_research_ohlcv.duckdb`
+are regenerable — the eight the chain rebuilds from the database, and the two a
+hand's search reruns. Beside the manifest, outside it, `<TICKER>_research_ohlcv.duckdb`
 holds the canonical series and its aggregations — its size moves with every
 top-up, and the README is byte-reproducible for an unchanged experiment.
 `<TICKER>_catalogue.json`, the feature layer's contract (§ Features), stands in

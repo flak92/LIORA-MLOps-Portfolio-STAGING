@@ -9,9 +9,12 @@ not two rounds. A profile searches the loops it names and the round skips the re
 nothing is convergence, and the state it stopped at is coordinate-wise locally optimal, never a global
 optimum.
 
-Every scored state, recorded in `<TICKER>_coordinate_search.json`, is the stage's own state, written after
-each, so an interrupted run resumes at the top of its round without a refit and a finished run is read,
-not rewritten. Promotes nothing: the proposals are read by a hand and copied by coordinate_search_promote."""
+Two files hold what the search knows. `<TICKER>_coordinate_search_trials.jsonl` is the ledger: one scored
+state a line, appended and never rewritten, the line's number the trial's index. `<TICKER>_coordinate_search.json`
+is where the search stands at the end of a round — what it was conditioned on, its beam, its champion, its
+path and its proposals — and it is written there and nowhere else. So an interrupted run resumes at the top
+of its round without a refit, the lines the interrupted round wrote being cache hits, and a finished run is
+read, not rewritten. Promotes nothing: the proposals are read by a hand and copied by coordinate_search_promote."""
 
 from __future__ import annotations
 
@@ -161,11 +164,11 @@ def top_beam(children: list[int], trials: list[dict], timeframes: tuple[str, ...
 
 # ---- the state file ------------------------------------------------------------------------------------
 
-def path_entry(state_file: dict, loop: str, family: str, beam: list[int]) -> dict:
+def path_entry(trials: list[dict], round_number: int, loop: str, family: str, beam: list[int]) -> dict:
     """One accepted expansion of the research path: which loop and family moved the search, where it landed
     and what the beam held after it."""
-    row = state_file["trials"][beam[0] - 1]
-    return {"round": state_file["round_count"] + 1, "loop": loop, "family": family,
+    row = trials[beam[0] - 1]
+    return {"round": round_number, "loop": loop, "family": family,
             "trial": beam[0], "beam": list(beam), "move": row["move"],
             "mean_relative_logloss_skill": row["mean_relative_logloss_skill"],
             "validation_path": row["validation_path"]}
@@ -201,9 +204,14 @@ def proposals_block(trials: list[dict], active_state: dict, champion_trial: int,
     } for rank, (index, row) in enumerate(ranked[:config.COORDINATE_SEARCH_PROPOSAL_COUNT], start=1)]
 
 
-def write_state(ticker: str, state_file: dict, active_state: dict, timeframes: tuple[str, ...]) -> None:
-    state_file["proposals"] = proposals_block(state_file["trials"], active_state,
-                                              state_file["champion_trial"] or 1, timeframes)
+def write_round_state(ticker: str, state_file: dict, trials: list[dict], active_state: dict,
+                      timeframes: tuple[str, ...]) -> None:
+    """Where the search stands, written once, at the end of a round — the one place this file is written.
+
+    The trials are the ledger beside it, appended a line at a time, so the state is a fixed handful of keys
+    and the proposals are derived once a round rather than once a trial. That is what makes the search's own
+    record grow with what it gains: the ledger by one line, this file not at all."""
+    state_file["proposals"] = proposals_block(trials, active_state, state_file["champion_trial"] or 1, timeframes)
     dataset.write_json(config.coordinate_search_json(ticker), state_file)
 
 
@@ -280,14 +288,17 @@ def main() -> int:
         active_state = start_state({"start_columns_by_timeframe": None}, active_columns, active_barriers, best, timeframes)
         inputs = dataset.to_json_safe(build_search_inputs(best, active_columns, active_barriers, cat, profile))
 
-        # the state: the recorded run when its inputs are the inputs of this one, else a fresh state
-        path = config.coordinate_search_json(ticker)
+        # the state: the recorded run when its inputs are the inputs of this one, else a fresh state and a
+        # fresh ledger — a trial of another experiment is not a cache hit for this one
+        path, ledger = config.coordinate_search_json(ticker), config.coordinate_search_trials_jsonl(ticker)
         state_file = dataset.load_json(path) if path.exists() else None
         if state_file is None or state_file["inputs"] != inputs:
-            state_file = {"inputs": inputs, "trials": [], "beam": [], "champion_trial": None,
-                          "round_count": 0, "trial_count_by_loop": {},
-                          "search_converged": False, "path": []}
-        trials = state_file["trials"]
+            state_file = {"inputs": inputs, "beam": [], "champion_trial": None,
+                          "round_count": 0, "search_converged": False, "path": []}
+            ledger.unlink(missing_ok=True)
+        # every line of the ledger, the ones a round interrupted after the last boundary wrote among them:
+        # those are cache hits, because the round they belong to starts again at its first family
+        trials = dataset.load_jsonl(ledger) if ledger.exists() else []
         trial_index_by_state = {state_key(theta(row)): index
                                 for index, row in enumerate(trials, start=1)}
         if state_file["search_converged"]:
@@ -303,14 +314,13 @@ def main() -> int:
             key = state_key(child)
             if key in trial_index_by_state:
                 return trial_index_by_state[key]
-            row = trial_result(asset, child, state_material(asset, child, rebuild, inherited))
-            trials.append({**row, "loop": loop, "family": family, "move": move,
-                           "round": state_file["round_count"] + 1 if move else 0,
-                           "parent_trial": parent})
+            row = {**trial_result(asset, child, state_material(asset, child, rebuild, inherited)),
+                   "loop": loop, "family": family, "move": move,
+                   "round": state_file["round_count"] + 1 if move else 0,
+                   "parent_trial": parent}
+            dataset.append_jsonl(ledger, row)                 # the ledger grows by one line, and by nothing else
+            trials.append(dataset.to_json_safe(row))          # held as the ledger will read it back
             trial_index_by_state[key] = len(trials)
-            if loop:
-                state_file["trial_count_by_loop"][loop] = state_file["trial_count_by_loop"].get(loop, 0) + 1
-            write_state(ticker, state_file, active_state, timeframes)
             return len(trials)
 
         if not trials:
@@ -352,7 +362,7 @@ def main() -> int:
                 if children:
                     beam = top_beam(children, trials, timeframes)
                     round_accepted = True
-                    round_path.append(path_entry(state_file, loop, family, beam))
+                    round_path.append(path_entry(trials, round_number, loop, family, beam))
             # the counters, the beam and the champion move together at the round's end: a trial written in
             # flight carries the round it belongs to, and a run interrupted inside a round resumes at the
             # top of that round, every state it already scored a cache hit
@@ -361,7 +371,7 @@ def main() -> int:
             state_file["champion_trial"] = beam[0]
             state_file["round_count"] = round_number
             state_file["search_converged"] = not round_accepted
-            write_state(ticker, state_file, active_state, timeframes)
+            write_round_state(ticker, state_file, trials, active_state, timeframes)
 
         champion_row = trials[state_file["champion_trial"] - 1]
         print(f"{ticker} {path.name}: converged after {state_file['round_count']} rounds and {len(trials)} trials, "

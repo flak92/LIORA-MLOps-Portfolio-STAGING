@@ -68,6 +68,21 @@ def load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+# twice by extraction
+def append_jsonl(path: Path, payload: dict) -> None:
+    """One object a line, appended: a ledger grows by what it gains and is never rewritten, so writing a
+    trial costs the trial and not the trials before it."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as ledger:
+        ledger.write(json.dumps(to_json_safe(payload), sort_keys=True) + "\n")
+
+
+# twice by extraction
+def load_jsonl(path: Path) -> list[dict]:
+    """A ledger as it was written: one object a line, in the order they were appended."""
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+
+
 def load_catalogue(ticker: str) -> dict:
     """The feature layer's contract for the asset, as features-catalogue wrote it — read once per stage and carried as
     `cat`; the one I/O the contract ever costs."""

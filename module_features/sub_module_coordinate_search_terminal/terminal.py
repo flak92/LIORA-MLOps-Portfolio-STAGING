@@ -97,7 +97,14 @@ def _profile_state(profile: dict | None, search: dict | None) -> str:
     return "matches the search" if search["inputs"]["profile"] == profile else "differs from the search"
 
 
-def _state_rows(ticker: str, profile: dict | None, search: dict | None) -> list[dict]:
+def _trial_rows(ticker: str) -> list[dict]:
+    """The search's ledger, line by line — the trials, where the state file holds where the search stands."""
+    ledger = config.coordinate_search_trials_jsonl(ticker)
+    return config.load_jsonl(ledger) if ledger.exists() else []
+
+
+def _state_rows(ticker: str, profile: dict | None, search: dict | None,
+                trials: list[dict]) -> list[dict]:
     """What the asset holds, one fact a row — every cell the file's own value, never an age or a share."""
     rows = [{"parameter": "asset", "value": ticker},
             {"parameter": "profile", "value": _profile_state(profile, search)}]
@@ -108,9 +115,13 @@ def _state_rows(ticker: str, profile: dict | None, search: dict | None) -> list[
     if search is None:
         rows.append({"parameter": "search", "value": "none"})
         return rows
-    rows += [{"parameter": "search", "value": f"{len(search['trials'])} trials in {search['round_count']} rounds"},
+    by_loop = {}
+    for row in trials:
+        if row["loop"]:
+            by_loop[row["loop"]] = by_loop.get(row["loop"], 0) + 1
+    rows += [{"parameter": "search", "value": f"{len(trials)} trials in {search['round_count']} rounds"},
              {"parameter": "trials by loop",
-              "value": " ".join(f"{loop} {count}" for loop, count in sorted(search["trial_count_by_loop"].items())) or "—"},
+              "value": " ".join(f"{loop} {count}" for loop, count in sorted(by_loop.items())) or "—"},
              {"parameter": "converged", "value": "yes" if search["search_converged"] else "no"},
              {"parameter": "champion trial", "value": search["champion_trial"] or "—"},
              {"parameter": "proposals", "value": len(search["proposals"])}]
@@ -126,9 +137,9 @@ def _path_block_cells(block: dict) -> dict:
             "path maxDD": _number(block["max_drawdown"], 4), "trades": block["trade_count"]}
 
 
-def _proposal_rows(search: dict) -> list[dict]:
+def _proposal_rows(search: dict, trials: list[dict]) -> list[dict]:
     return [{"#": proposal["proposal"], "trial": proposal["trial"],
-             "coordinates moved": _moved(proposal, search),
+             "coordinates moved": _moved(proposal, trials),
              **_path_block_cells(proposal["validation_path"])}
             for proposal in search["proposals"]]
 
@@ -139,11 +150,11 @@ def _path_rows(search: dict) -> list[dict]:
             for number, entry in enumerate(search["path"], start=1)]
 
 
-def _moved(proposal: dict, search: dict) -> str:
+def _moved(proposal: dict, trials: list[dict]) -> str:
     """What one proposal changes against the state the search started from — the columns it adds and drops, and
     each barrier coordinate whose value is not that state's. A join, not a difference this terminal computes:
     the columns come from the search's own two lists."""
-    start = search["trials"][0]
+    start = trials[0]
     columns = [f"+{name}_{timeframe}" for timeframe, names in sorted(proposal["added_columns_by_timeframe"].items())
                for name in names]
     columns += [f"-{name}_{timeframe}" for timeframe, names in sorted(proposal["removed_columns_by_timeframe"].items())
@@ -180,7 +191,7 @@ def _write_search_profile(ticker: str, catalogue: dict, profile: dict | None, se
         if answer in (None, ""):
             return _cancelled_exit_code()
         start_columns = (None if answer == "null" else
-                         search["trials"][search["champion_trial"] - 1]["columns_by_timeframe"])
+                         _trial_rows(ticker)[search["champion_trial"] - 1]["columns_by_timeframe"])
         chosen["start state"] = next(row["start state"] for row in start_rows if row["value"] == answer)
 
         coordinate_rows = [{"coordinate": name, "grid": ", ".join(str(point) for point in grid),
@@ -292,12 +303,16 @@ def _write_coordinate_search(ticker: str, profile: dict | None, search: dict | N
 
 
 def _recorded_search_tables(ticker: str, profile: dict | None, search: dict | None) -> int:
-    """Read the recorded search: where it stands, the path it took and the states it proposes. Writes nothing."""
+    """Read the recorded search: where it stands, the path it took and the states it proposes. Writes nothing.
+
+    Two files: the state file says where the search stands and what it proposes, the ledger holds the trials
+    and is what the counts are taken off."""
     if search is None:
         return _failure_exit_code(f"{ticker} has no coordinate search",
                                   config.coordinate_search_json(ticker).name,
                                   "no search has run for this asset", "draft a profile, then start the search")
-    tui.gum_table(("parameter", "value"), _state_rows(ticker, profile, search))
+    trials = _trial_rows(ticker)
+    tui.gum_table(("parameter", "value"), _state_rows(ticker, profile, search, trials))
     print()
     if search["path"]:
         tui.gum_table(PATH_COLUMNS, _path_rows(search), PATH_COLUMNS_DROP_ORDER)
@@ -305,7 +320,7 @@ def _recorded_search_tables(ticker: str, profile: dict | None, search: dict | No
         print("no accepted move")
     print()
     if search["proposals"]:
-        tui.gum_table(PROPOSAL_COLUMNS, _proposal_rows(search), PROPOSAL_COLUMNS_DROP_ORDER)
+        tui.gum_table(PROPOSAL_COLUMNS, _proposal_rows(search, trials), PROPOSAL_COLUMNS_DROP_ORDER)
     else:
         print("no proposal")
     return 0
@@ -319,7 +334,8 @@ def _write_promoted_proposal(ticker: str, profile: dict | None, search: dict | N
                                   "no search has run for this asset" if search is None else "the search proposes none",
                                   "start the search, then read its tables")
     chosen = {"action": "promote"}
-    answer = _step_answer(PROMOTE_STEPS, chosen, _proposal_rows(search), "#", PROPOSAL_COLUMNS_DROP_ORDER)
+    trials = _trial_rows(ticker)
+    answer = _step_answer(PROMOTE_STEPS, chosen, _proposal_rows(search, trials), "#", PROPOSAL_COLUMNS_DROP_ORDER)
     if answer in (None, ""):
         return _cancelled_exit_code()
     proposal = next(row for row in search["proposals"] if str(row["proposal"]) == answer)
@@ -330,7 +346,7 @@ def _write_promoted_proposal(ticker: str, profile: dict | None, search: dict | N
                   [{"parameter": "asset", "value": ticker},
                    {"parameter": "proposal", "value": f"{answer} of {len(search['proposals'])}"},
                    {"parameter": "trial", "value": proposal["trial"]},
-                   {"parameter": "coordinates moved", "value": _moved(proposal, search)}])
+                   {"parameter": "coordinates moved", "value": _moved(proposal, trials)}])
     print(f"command         {shlex.join(('make', config.PROMOTE_TARGET, f'ASSET={ticker}', f'PROPOSAL={answer}'))}")
     print()
     decision = tui.gum_choose(f"promote proposal {answer} and rerun the ML chain for {ticker}?",
@@ -380,9 +396,9 @@ def main() -> int:
     try:
         tui.gum_style([f"Coordinate search terminal",
                        f"{ticker} · profile {_profile_state(profile, search)} · "
-                       f"{'no search' if search is None else str(len(search['trials'])) + ' trials'}"], "CURRENT")
+                       f"{'no search' if search is None else str(len(_trial_rows(ticker))) + ' trials'}"], "CURRENT")
         print()
-        tui.gum_table(("parameter", "value"), _state_rows(ticker, profile, search))
+        tui.gum_table(("parameter", "value"), _state_rows(ticker, profile, search, _trial_rows(ticker)))
         print()
         action = tui.gum_choose("action", _option_rows("draft", "search", "status", "promote", "quit"), "option")
         if action in (None, "", "quit"):

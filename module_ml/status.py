@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import collections
 from datetime import UTC, datetime
 
 
@@ -129,12 +130,17 @@ def coordinate_search_block(ticker: str, best_params: dict, active_columns_by_ti
     if not path.exists():
         return None
     search = dataset.load_json(path)
+    ledger = config.coordinate_search_trials_jsonl(ticker)
+    # the trials are the ledger's lines, and how many each loop scored is counted off them: one number in
+    # one place, derived where it is read rather than carried in a second file
+    trials = dataset.load_jsonl(ledger) if ledger.exists() else []
+    trial_count_by_loop = collections.Counter(row["loop"] for row in trials if row["loop"])
     inputs_current = profile_path.exists() and search["inputs"] == dataset.to_json_safe(
         coordinate_search.build_search_inputs(best_params, active_columns_by_timeframe, active_barriers,
                                               cat, dataset.load_json(profile_path)))
     return {
-        "trial_count": len(search["trials"]),
-        "trial_count_by_loop": dict(sorted(search["trial_count_by_loop"].items())),
+        "trial_count": len(trials),
+        "trial_count_by_loop": dict(sorted(trial_count_by_loop.items())),
         "round_count": search["round_count"],
         "search_converged": search["search_converged"],
         "champion_trial": search["champion_trial"],
@@ -185,6 +191,7 @@ def file_manifest(ticker: str, cat: dict) -> list[tuple]:
         (config.catalogue_json(ticker), "the feature layer's contract: the timeframes and their slots, the warm-up, the columns offered per timeframe and the default set — read once per stage"),
         (config.coordinate_search_json(ticker), "the coordinate search: every scored state, the beam, the path it took, the champion and the proposals"),
         (config.coordinate_search_profile_json(ticker), "the search profile: the columns admitted, the state to start from, each coordinate's grid and the loops of a round — drafted by a hand"),
+        (config.coordinate_search_trials_jsonl(ticker), "the coordinate search's ledger: one scored state a line, appended and never rewritten"),
         (config.feature_set_json(ticker), "the promoted feature set: its columns per timeframe, a hand's choice — absent, the default set is the asset's"),
         *((config.features_parquet(ticker, cat, timeframe), f"the catalogue on {timeframe} — every definition offered on it, on the decision grid")
           for timeframe in config.timeframes(cat)),

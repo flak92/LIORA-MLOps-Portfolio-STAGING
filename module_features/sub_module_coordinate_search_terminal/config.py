@@ -36,6 +36,18 @@ def coordinate_search_json(ticker: str) -> Path:
 
 
 # twice by extraction
+def coordinate_search_trials_jsonl(ticker: str) -> Path:
+    """The search's ledger: one scored state a line, appended and never rewritten."""
+    return artifact_dir(ticker) / f"{ticker}_coordinate_search_trials.jsonl"
+
+
+# twice by extraction
+def load_jsonl(path: Path) -> list[dict]:
+    """A ledger as it was written: one object a line, in the order they were appended."""
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+
+
+# twice by extraction
 def coordinate_search_profile_json(ticker: str) -> Path:
     """What a hand asks the search to look at: the columns admitted, the state to start from, the grid of
     each coordinate and the loops of a round. Drafted, never derived."""

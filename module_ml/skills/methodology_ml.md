@@ -164,9 +164,17 @@ is convergence — `search_converged` — and the state it stops at is
 a global optimum and the file does not claim one.
 
 A state scored once is looked up, never fitted twice, and no booster is kept.
-Every scored state is recorded in `<TICKER>_coordinate_search.json`, rewritten
-after each, so an interrupted run resumes at the top of its round and a finished
-run is read, not rewritten; its `inputs` — the window with its warm-up and seed,
+Two files hold what the search knows, and the split is what keeps its own record
+proportional to what it learns: `<TICKER>_coordinate_search_trials.jsonl` is the
+ledger — one scored state a line, appended, never rewritten, so writing a trial
+costs that trial and not the trials before it — and
+`<TICKER>_coordinate_search.json` is where the search stands at the end of a
+round, written there and nowhere else, so its size does not grow with the search
+at all. An interrupted run resumes at the top of the round the state records, the
+ledger lines that round already wrote being cache hits; a run interrupted before
+its first round ends has no state, and its ledger is discarded rather than
+trusted, because nothing on disk yet says which experiment those lines belong to.
+A finished run is read, not rewritten. The state's `inputs` — the window with its warm-up and seed,
 `best_params`, the catalogue's columns, the asset's own state, the profile and
 the selection the experiment froze — are the one copy of other files' content an
 artifact carries, compared by equality when the stage is rerun and again by
