@@ -79,9 +79,10 @@ answering from the message alone.
 
 `make skills-crawl` opens the crawler's text-based user interface (TUI): the
 screens `crawl.py` composes and `tui.py` draws in gum, to the standards of
-`sub_module_scalability_crawler/skill_tui_designer.md`. This section says what
-each screen holds and what each answer writes; how a screen is drawn is that
-skill's.
+`skill_tui_designer.md`, which crosses the sub-modules that draw a terminal and
+therefore sits in the canon. This section says what each screen holds, what each
+answer writes, and the screens' own words, tables and lists; how a screen is
+drawn is that skill's.
 
 A run opens on the header block — *Scalability crawler* over the counts of paths
 listed, skills, files, crawled and never crawled — the listed paths table, one
@@ -141,6 +142,86 @@ to do next, exit 1.
 After a run `git status` shows the reports that grew, `to_crawl.md` if a path was
 added, marked or removed, and the snapshot; a hand reads them and commits them.
 
+### The crawler's own words, tables and lists
+
+Two states beside the closed list of `skill_tui_designer.md` § One concept, one
+representation: `CRAWLING` — the file the agent reads now, → cyan,
+`[CRAWLING]` — and `NOT CRAWLED` — a chosen file the crawl did not reach, ○, no
+colour, `[NOT CRAWLED]`. `never` is a value — the `last crawl (UTC)` of a file no
+report dates — not a state; so is `X`, a mark of the skill matrix. Forbidden
+here: `target` for a listed path, `DIRECTORY` for a folder, `workflow` for the
+steps; `assign`, `tag` or `✓` for a mark.
+
+The tables, with the columns a narrow terminal leaves out first:
+
+| table | columns | left out first on a narrow terminal |
+|---|---|---|
+| the listed paths | `#`, `path`, `kind`, `files`, `crawled` | `kind`, `crawled`, `files` |
+| the skill matrix, turned | `skill`, then the `#` of each listed path | the last paths' `#` |
+| the steps | `step`, `state`, `choice` | — |
+| the plan, a preview | `parameter`, `value` | — |
+| the files — the queue, the files a crawl will read, the files an add resolves to | `#`, `file`, `last crawl (UTC)`, `crawls`, `skills` | `skills`, `crawls`, `last crawl (UTC)` |
+| the changes | `skill`, `now`, `after` | — |
+| the results | `#`, `file`, `result`, `time`, `report` | `report`, `time` |
+| the vendor list | `vendor`, `on PATH`, `command` | `command` |
+| a form's options | `label`, `args` | `args` |
+| the skills form | `skill`, `path` | `path` |
+| the paths to mark | `#`, `path`, `skills` | — |
+
+- **The skill matrix is turned on the screen:** `to_crawl.md` holds a row per path
+  and a column per skill; the terminal shows a row per skill by its stem and a
+  column per listed path by its `#` — the `#` of the listed paths table right
+  above — because a stem runs to 35 columns and a `#` to a few: no legend, and a
+  stem never cut.
+- **`#` counts from 1 in the skill matrix's order** — `to_crawl.md`'s rows, or the
+  queue's. A cell is the snapshot's value as it stands (`crawl_count`,
+  `last_crawled_utc` or `never`, `report`), a mark `X` or empty.
+- **The one bounded table is an add's preview** — `PREVIEW_TABLE_LIMIT_ROWS` files,
+  then `… <k> more, <n> files in all`.
+- **The options in their file's order:** the actions; the vendors in
+  `vendors_for_crawling.toml`'s; a form's options in theirs; the files in the
+  queue's; the listed paths in `to_crawl.md`'s rows; the skills in its columns'.
+  Every file starts chosen (`--selected "*"`), and a skill when its row marks it —
+  in an add, when `SKILL_PRESELECTED_PATHS` finds it.
+- **The headers of its lists,** each a register label: `action`, `vendor`, `model`,
+  `effort`, `permissions`, `files to crawl`, `path to add`, `skills for <path>`,
+  `path to mark`, `path to remove`.
+- **A form's option shows its `args`** as a shell writes them (`shlex.join`),
+  because they are what it does; a vendor shows whether its command line is on the
+  `PATH`, and the command line — each left out, and said, only on a terminal too
+  narrow for it, the plan showing the whole command line.
+- **The steps table's rows** are `action`, `vendor`, each form the vendor's table
+  has in `model`, `effort`, `permissions` order, `files to crawl`, `plan`. Before
+  the vendor is chosen its forms are one row, `the vendor's forms`: a step is read
+  off the vendor's table, never assumed. An add and a mark draw no steps table.
+- **The plan** carries `timeout per file` and `reports` beside the choices, the
+  `command` line and the `report heading` each report entry will carry, verbatim,
+  and the files table of the chosen files; then the gate
+  `crawl <n> files with <vendor>?` — `crawl`, `back`, `cancel`.
+- **An add shows what it writes before it writes it:** the path picked in
+  `gum filter` — typed in part, the placeholder a real example — then
+  `resolving <path> …`, the skills form, the preview table (`path`, `kind`,
+  `files`, `skills`, `writes`) and the files it resolves to, then `add`, `back`,
+  `cancel`; `back` returns to the filter with the path typed again.
+- **A remove says what it does and what it does not:** the `WARN` block — its row
+  leaves `to_crawl.md`, yes; a file of the repository is deleted, no; its reports
+  are deleted, no — then `remove`, `back`, `cancel`.
+- **Progress:** `[<i>/<n>] → CRAWLING <path> · <vendor>` before a file's message is
+  built, the agent's stderr on the screen as it runs, then
+  `[<i>/<n>] ✓ DONE <path> <s> s` or `✕ FAILED`; after the crawl the results table
+  and the `DONE` block, `crawled <k> of <n> files with <vendor> · <labels>`.
+- **Its exits** are `skill_tui_designer.md` § Failures and exits, with two facts of
+  its own: no file chosen in *files to crawl* is a cancel, exit 0, and Ctrl-C
+  leaves a crawl's reports already written in place and writes its snapshot.
+- **A screen reads and never recomputes:** the skill matrix's rule through
+  `status.load_skill_matrix()` and `status.load_entry_paths()`, its columns through
+  `status.load_skill_paths()` — a refusal shown in its own words —, a file's row
+  through `status.load_file_row()`, the vendors through `load_active_vendors()`,
+  the command line through `build_command()`, the timeout from
+  `config.AGENT_TIMEOUT_MINUTES`.
+- **Without the Makefile** the help is read as
+  `STORE_STATUS_DIR=store/status python3 -B -m module_skills.sub_module_scalability_crawler.crawl -h`.
+
 ## The actuality
 
 Every action of `make skills-crawl` that changes something ends with
@@ -161,10 +242,9 @@ architectural direction).
 | object | why here | why beside these | why this boundary | answers to |
 |---|---|---|---|---|
 | `__init__.py` | The package that makes `crawl` and `status` commands of `python3 -m`. | It imports nothing; `module_skills/` stays a folder of documents. | The commands run from the checkout's root. | no row — a reading of the tree that travels with the canon |
-| `README_sub_module_scalability_crawler.md` | The front door: the commands, the three files kept by hand and the loop. | Beside the files it names; the rules stay in this skill and the standards of the screens in `skill_tui_designer.md`, which it cites. | It restates no rule and decides nothing. | no row — a reading of the tree that travels with the canon |
+| `README_sub_module_scalability_crawler.md` | The front door: the commands, the three files kept by hand and the loop. | Beside the files it names; the rules stay in this skill and the standards of the screens in `module_skills/skill_tui_designer.md`, which it cites. | It restates no rule and decides nothing. | no row — a reading of the tree that travels with the canon |
 | `config.py` | The one surface of configuration (its docstring). | `crawl.py`, `status.py` and `tui.py` import it; `STORE_STATUS_DIR` comes from the environment, as in every `config.py`, and `OUTPUT_PLAIN` from `NO_COLOR`, `TERM` and whether standard output is a terminal; the sub-module's own files are read from `SUB_MODULE_DIR`, a listed path, a document and a skill from `REPO_ROOT`. | A document sent with every file is one line of `SENT_DOCUMENT_PATHS`, a family of skills one pattern of `SKILL_PATHS`, and which skill acts on a file's crawl a mark of `to_crawl.md`, never a line here; a vendor is a table of `vendors_for_crawling.toml`; plain output is the environment's, never a flag. | no row — a reading of the tree that travels with the canon |
 | `crawl.py` | The TUI's screens and the crawl (its docstring). | It imports `config.py`, `status.py` and `tui.py`, reads the active vendors through `load_active_vendors()`, builds the agent's command line through `build_command()`, runs git twice — the paths an add offers, the commit a report entry names — and that command line over `subprocess`, and draws every screen through `tui.py`. | It writes the reports, the skill matrix through `write_skill_matrix()` and, through `status.py`, the snapshot — nothing else; `-h`, `--help` is its one argument. | no row — a reading of the tree that travels with the canon |
-| `skill_tui_designer.md` | The standards of the TUI's screens: tables, lists, forms, feedback, failures and plain output. | Beside the code it governs, outside `module_skills/skill_*.md`, which cross modules or govern the project; this one governs the crawler's screens alone. | A column of `to_crawl.md` like every skill, sent with a file whose row marks it; an add preselects it for a path in the sub-module's folder. | no row — a reading of the tree that travels with the canon |
 | `status.py` | The snapshot and the skill matrix's rule (its docstring). | It imports `config.py`, reads the skill matrix and the reports, and writes `skills_status.json`; its `load_skill_matrix()`, `load_skill_paths()` and `load_entry_paths()` are the skill matrix's one rule and `load_file_row()` a file's one row, which the TUI also reads. | A function of the skill matrix's paths and the reports; a mark enters no row. | no row — a reading of the tree that travels with the canon |
 | `tui.py` | How a screen is drawn and an answer taken (its docstring): the state words, plain output, the columns that fit, and every gum command line over `subprocess`. | `crawl.py` alone imports it, and it imports `config.py` for plain output alone; it knows no vendor, no skill matrix and no report. | It writes to the terminal and no file; a hand's answer returns to `crawl.py` as text. | no row — a reading of the tree that travels with the canon |
 | `to_crawl.md` + `crawlers_mission.md` + `vendors_for_crawling.toml` | The three inputs a hand keeps. | Beside the code that reads them. | `to_crawl.md` — its entries and its marks — edited by a hand in the file or in the TUI, its header rewritten from the tree by every write; `crawlers_mission.md` and `vendors_for_crawling.toml` by hand alone; never by a crawl. | no row — a reading of the tree that travels with the canon |

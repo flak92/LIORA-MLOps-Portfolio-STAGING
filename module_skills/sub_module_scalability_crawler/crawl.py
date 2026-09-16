@@ -1,6 +1,6 @@
 """The crawler's text-based user interface (TUI) and its crawl: the listed paths and the skill matrix, then one action a
 hand chooses in the menu — crawl, add a path, mark skills or remove a path — its forms and its result, drawn by tui.py to
-skill_tui_designer.md; then it closes.
+module_skills/skill_tui_designer.md; then it closes.
 
 keys:
   Enter takes the option under the cursor; x toggles a file or a skill; Esc cancels and writes nothing (exit 0); Ctrl-C

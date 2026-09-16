@@ -2,7 +2,7 @@
 
 Reads each file a hand lists against the skills a hand marks for it and appends each agent's answer to
 the file's report. Its rules are `../skill_scalability_crawler.md`, and the standards of its screens
-`skill_tui_designer.md`, beside this file.
+`../skill_tui_designer.md`, which every TUI of this tree obeys.
 
 ```bash
 make skills-crawl     # the TUI: the listed paths and the skill matrix, then crawl (vendor, model, effort, permissions, files, the plan), add a path with its skills, mark skills or remove a path

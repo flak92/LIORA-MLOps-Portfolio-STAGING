@@ -26,11 +26,11 @@ SENT_DOCUMENT_PATHS = ("AGENTS.md", "module_skills/glossary.md",
 # the skills, each a column of the skill matrix in the byte order of their paths — every module's skills/, the canon's
 # and its sub-modules'; and those an add preselects — the canon's, those of the path's module ({module}) and those in
 # the path's folder or a folder above it ({folder})
-SKILL_PATHS = ("module_*/skills/*.md", "module_skills/skill_*.md", "module_skills/sub_module_*/skill_*.md")
+SKILL_PATHS = ("module_*/skills/*.md", "module_skills/skill_*.md", "module_*/sub_module_*/skill_*.md")
 SKILL_PRESELECTED_PATHS = ("module_skills/skill_*.md", "{module}/skills/*.md", "{folder}/skill_*.md")
 AGENT_TIMEOUT_MINUTES = 30
 # plain output — state words in brackets, no colour, no symbol, no border: NO_COLOR set and not empty, TERM=dumb, or
-# standard output not a terminal (skill_tui_designer.md § Colour and plain output)
+# standard output not a terminal (module_skills/skill_tui_designer.md § Colour and plain output)
 OUTPUT_PLAIN = (bool(os.environ.get("NO_COLOR")) or os.environ.get("TERM") == "dumb"
                 or not sys.stdout.isatty())
 PREVIEW_TABLE_LIMIT_ROWS = 10   # the files an add's preview lists before one line counts the rest

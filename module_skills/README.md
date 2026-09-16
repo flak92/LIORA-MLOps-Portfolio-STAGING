@@ -7,9 +7,10 @@ rule of its own, so nothing here can disagree with the document it points at.
 Ownership decides location, and `AGENTS.md` § The default choice holds the rule:
 a module's own skills live in that module's `skills/`, the skills that cross
 modules live here, in `module_skills/` — the canon, with its one sub-module, the
-scalability crawler, which reads each file a hand lists against the skills a hand marks for it and
-keeps the one skill about its own screens beside its code. Each is written exactly once, and a skill is named below by the path it
-holds in the tree.
+scalability crawler, which reads each file a hand lists against the skills a hand marks for it. A
+rule two sub-modules draw to crosses them and lives here too — `skill_tui_designer.md`, the
+standards of a TUI's screens; a rule about one sub-module alone stays beside its code. Each is
+written exactly once, and a skill is named below by the path it holds in the tree.
 
 ## Cross-cutting — the skills in this directory
 
@@ -23,12 +24,7 @@ holds in the tree.
 | [skill_scalability_crawler.md](skill_scalability_crawler.md) | the scalability crawler: the skill matrix, the mission, the reports and the snapshot that dates them |
 | [skill_self_explaining_naming.md](skill_self_explaining_naming.md) | names derived from a closed grammar, and how a new convention is minted |
 | [skill_sorting_files_naming_standard.md](skill_sorting_files_naming_standard.md) | taxonomic ordering, zero-padding and the timeframe slot standard |
-
-## module_skills/sub_module_scalability_crawler
-
-| skill | what it governs |
-|---|---|
-| `module_skills/sub_module_scalability_crawler/skill_tui_designer.md` | the crawler's text-based user interface (TUI): its tables, lists and forms in gum, feedback and progress, failures and exits, colour and plain output |
+| [skill_tui_designer.md](skill_tui_designer.md) | a text-based user interface (TUI) in gum: its instruments, its screen order, its tables, lists and forms, feedback, failures, exits, colour and plain output |
 
 ## Described, not written
 

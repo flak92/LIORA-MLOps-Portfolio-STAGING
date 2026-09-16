@@ -1,5 +1,5 @@
 """The crawler's text-based user interface (TUI) over the gum command line: the state words, plain output, tables and
-lists fitted to the terminal, blocks, and the answer a hand gives in a prompt. Its standards are skill_tui_designer.md;
+lists fitted to the terminal, blocks, and the answer a hand gives in a prompt. Its standards are module_skills/skill_tui_designer.md;
 what a screen holds is crawl.py's."""
 
 from __future__ import annotations
