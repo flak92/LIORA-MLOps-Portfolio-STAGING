@@ -110,7 +110,7 @@ def _state_rows(ticker: str, profile: dict | None, search: dict | None,
             {"parameter": "profile", "value": _profile_state(profile, search)}]
     if profile is not None:
         rows.append({"parameter": "coordinates searched",
-                     "value": f"{len(profile['grid_by_coordinate'])} of {len(config.GRID_BY_COORDINATE_DEFAULT)}"})
+                     "value": f"{sum(len(grid) > 1 for grid in profile['grid_by_coordinate'].values())} of {len(config.GRID_BY_COORDINATE_DEFAULT)}"})
         rows.append({"parameter": "loops", "value": " ".join(profile["loops"]) or "—"})
     if search is None:
         rows.append({"parameter": "search", "value": "none"})
@@ -168,6 +168,13 @@ def _moved(proposal: dict, trials: list[dict]) -> str:
 
 # ---- the actions ----------------------------------------------------------------------------------------
 
+def _pinned_point(profile: dict | None, name: str):
+    """Where an unsearched coordinate is pinned: the point the profile already stands on — the first of the
+    grid it holds — or the experiment's frozen geometry when a hand is drafting the first profile."""
+    grid = (profile or {}).get("grid_by_coordinate", {}).get(name)
+    return grid[0] if grid else config.START_BY_COORDINATE_DEFAULT[name]
+
+
 def _write_search_profile(ticker: str, catalogue: dict, profile: dict | None, search: dict | None) -> int:
     """Draft the asset's search profile: which columns the search may admit, which state it starts from, which
     coordinates it moves and which loops a round runs. The grids are the one preset — another grid is a hand's
@@ -199,7 +206,8 @@ def _write_search_profile(ticker: str, catalogue: dict, profile: dict | None, se
         coordinate_rows = [{"coordinate": name, "grid": ", ".join(str(point) for point in grid),
                             "points": len(grid)}
                            for name, grid in sorted(config.GRID_BY_COORDINATE_DEFAULT.items())]
-        searched = sorted(profile["grid_by_coordinate"]) if profile else sorted(config.GRID_BY_COORDINATE_DEFAULT)
+        searched = (sorted(name for name, grid in profile["grid_by_coordinate"].items() if len(grid) > 1)
+                    if profile else sorted(config.GRID_BY_COORDINATE_DEFAULT))
         answer = _step_answer(DRAFT_STEPS, chosen, coordinate_rows, "coordinate", ("points", "grid"),
                               selected=searched)
         if answer is None:
@@ -220,8 +228,12 @@ def _write_search_profile(ticker: str, catalogue: dict, profile: dict | None, se
                 timeframe: [name for name in catalogue["columns_by_timeframe"][timeframe]
                             if f"{name}_{timeframe}" in admitted]
                 for timeframe in timeframes},
-            "grid_by_coordinate": {name: list(grid) for name, grid in sorted(config.GRID_BY_COORDINATE_DEFAULT.items())
-                                   if name in searched},
+            # every coordinate, always: a profile that omits one leaves the search reading a key that is not
+            # there, and a coordinate a hand did not tick is not a coordinate that stopped existing — it is
+            # one pinned to where it stands. Its grid is that single point, which the kernel already handles,
+            # because a one-point grid has no neighbour and a family with no neighbour makes no move
+            "grid_by_coordinate": {name: (list(grid) if name in searched else [_pinned_point(profile, name)])
+                                   for name, grid in sorted(config.GRID_BY_COORDINATE_DEFAULT.items())},
             "loops": loops,
             "start_columns_by_timeframe": start_columns,
         }
@@ -274,7 +286,7 @@ def _write_coordinate_search(ticker: str, profile: dict | None, search: dict | N
     plan = [{"parameter": "asset", "value": ticker},
             {"parameter": "profile", "value": path.name},
             {"parameter": "coordinates searched",
-             "value": f"{len(profile['grid_by_coordinate'])} of {len(config.GRID_BY_COORDINATE_DEFAULT)}"},
+             "value": f"{sum(len(grid) > 1 for grid in profile['grid_by_coordinate'].values())} of {len(config.GRID_BY_COORDINATE_DEFAULT)}"},
             {"parameter": "loops", "value": " ".join(profile["loops"]) or "—"},
             {"parameter": "writes", "value": f"{config.coordinate_search_json(ticker).name}, after every scored state"}]
     tui.gum_table(("parameter", "value"), plan)

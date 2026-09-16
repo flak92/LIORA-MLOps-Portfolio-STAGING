@@ -38,7 +38,12 @@ count; then the menu, `gum choose` headed *action*: draft, search, status, promo
   when there is no profile — so a column the catalogue does not offer on a timeframe cannot be admitted on it.
   *start state*, the asset's own or the recorded search's champion. *coordinates to search*, the coordinates of
   `GRID_BY_COORDINATE_DEFAULT`, each shown with its grid; the grid itself is not asked, because it is one
-  preset and another grid is a hand's edit of the file. *loops*, the loops of a round in their frozen order.
+  preset and another grid is a hand's edit of the file. The drafted profile carries **every** coordinate
+  whatever a hand ticks: one left unticked is pinned to where it stands — the first point of the grid the
+  profile already holds, or `START_BY_COORDINATE_DEFAULT` when there is no profile yet — and its grid becomes
+  that one point. A one-point grid has no neighbour, so its family makes no move and the kernel needs no case
+  for it; a profile that simply omitted the coordinate left the search reading a key that was not there.
+  On the state table, *coordinates searched* counts the grids offering a choice, not the keys present. *loops*, the loops of a round in their frozen order.
   Then the changes table — each key of the profile whose value moves, now and after — or the line
   `no profile changes`, and the gate `draft <TICKER>_coordinate_search_profile.json?` with *draft* first,
   *back* and *cancel*; *draft* is absent when nothing changes, and *back* asks the forms again from the first.
@@ -72,6 +77,10 @@ not even test whether tmux is on the `PATH`: when it is not, `make` says so in i
 block carries them.
 
 `PROPOSAL=` on the outer make line does nothing — the terminal always passes the rank a hand chose.
+
+A state file older than the code is not read: the terminal and the search fail on the missing key. Delete
+the file — the search writes a new one. A stage that guessed at a key it did not find would be guessing at
+which experiment the file described.
 
 ## Exits
 

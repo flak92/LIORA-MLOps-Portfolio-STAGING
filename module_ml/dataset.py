@@ -105,6 +105,7 @@ def barriers_from(coordinates: dict) -> dict:
     return {**coordinates, "horizon_minutes": config.HORIZON_TOKEN_MINUTES[coordinates["label_horizon"]]}
 
 
+# twice by extraction
 def load_barriers(ticker: str) -> dict:
     """The asset's barrier geometry: the promoted file's when it exists, else the frozen constants of
     the experiment. The horizon travels as a duration token and is turned into minutes here and

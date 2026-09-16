@@ -77,6 +77,17 @@ GRID_BY_COORDINATE_DEFAULT = {
     "stop_loss_atr_multiplier": [1.5, 2.0, 2.5],
     "take_profit_atr_multiplier": [1.5, 2.0, 2.5],
 }
+# where a coordinate sits when a hand does not search it: its grid becomes this one point. A grid must
+# contain the state it starts from, and a grid of one point offers no neighbour, so the family makes no move
+# and the kernel needs no case for it. These are the experiment's frozen geometry, which `load_barriers()` in
+# module_ml/dataset.py falls back to when no promotion has written one
+# twice by extraction
+START_BY_COORDINATE_DEFAULT = {
+    "atr_barrier_multiplier": 2.0,
+    "label_horizon": "4h",
+    "stop_loss_atr_multiplier": 2.0,
+    "take_profit_atr_multiplier": 2.0,
+}
 # the loops of a round, in the frozen order a round applies them — module_ml/config.py carries the same tuple
 ROUND_LOOPS = ("barrier", "feature_set", "hpo")
 # the two make targets this terminal starts, and nothing else: tmux and docker compose are the Makefile's
