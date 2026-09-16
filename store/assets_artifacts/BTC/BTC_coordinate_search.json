@@ -1,0 +1,425 @@
+{
+ "beam": [
+  5
+ ],
+ "champion_trial": 5,
+ "inputs": {
+  "active_barriers": {
+   "atr_barrier_multiplier": 2.0,
+   "label_horizon": "4h",
+   "stop_loss_atr_multiplier": 2.0,
+   "take_profit_atr_multiplier": 2.0
+  },
+  "active_columns_by_timeframe": {
+   "15m": [
+    "ema20_minus_ema50_over_atr14",
+    "centered_rsi14",
+    "atr14_over_close",
+    "range_position20",
+    "log_volume_zscore50"
+   ],
+   "1h": [
+    "ema20_minus_ema50_over_atr14",
+    "centered_rsi14",
+    "atr14_over_close",
+    "range_position20",
+    "log_volume_zscore50"
+   ],
+   "4h": [
+    "ema20_minus_ema50_over_atr14",
+    "centered_rsi14",
+    "atr14_over_close",
+    "range_position20",
+    "log_volume_zscore50"
+   ]
+  },
+  "best_params": {
+   "alpha": 0.21987406704453746,
+   "colsample_bytree": 0.5207781426982558,
+   "eta": 0.059957058420853186,
+   "lambda": 9.148168912060187,
+   "max_depth": 3,
+   "min_child_weight": 50,
+   "num_boost_round": 250,
+   "subsample": 0.889711024411241
+  },
+  "catalogue_columns_by_timeframe": {
+   "15m": [
+    "ema20_minus_ema50_over_atr14",
+    "centered_rsi14",
+    "atr14_over_close",
+    "range_position20",
+    "log_volume_zscore50",
+    "zscore20",
+    "close_minus_sma50_over_atr14"
+   ],
+   "1h": [
+    "ema20_minus_ema50_over_atr14",
+    "centered_rsi14",
+    "atr14_over_close",
+    "range_position20",
+    "log_volume_zscore50",
+    "zscore20",
+    "close_minus_sma50_over_atr14"
+   ],
+   "4h": [
+    "ema20_minus_ema50_over_atr14",
+    "centered_rsi14",
+    "atr14_over_close",
+    "range_position20",
+    "log_volume_zscore50",
+    "zscore20",
+    "close_minus_sma50_over_atr14",
+    "close_minus_sma200_over_atr14"
+   ]
+  },
+  "profile": {
+   "columns_admitted_by_timeframe": {
+    "15m": [
+     "ema20_minus_ema50_over_atr14",
+     "centered_rsi14",
+     "atr14_over_close",
+     "range_position20",
+     "log_volume_zscore50",
+     "zscore20",
+     "close_minus_sma50_over_atr14"
+    ],
+    "1h": [
+     "ema20_minus_ema50_over_atr14",
+     "centered_rsi14",
+     "atr14_over_close",
+     "range_position20",
+     "log_volume_zscore50",
+     "zscore20",
+     "close_minus_sma50_over_atr14"
+    ],
+    "4h": [
+     "ema20_minus_ema50_over_atr14",
+     "centered_rsi14",
+     "atr14_over_close",
+     "range_position20",
+     "log_volume_zscore50",
+     "zscore20",
+     "close_minus_sma50_over_atr14",
+     "close_minus_sma200_over_atr14"
+    ]
+   },
+   "grid_by_coordinate": {
+    "atr_barrier_multiplier": [
+     1.75,
+     2.0,
+     2.25
+    ],
+    "label_horizon": [
+     "2h",
+     "4h",
+     "8h",
+     "12h",
+     "1d"
+    ],
+    "stop_loss_atr_multiplier": [
+     1.5,
+     2.0,
+     2.5
+    ],
+    "take_profit_atr_multiplier": [
+     1.5,
+     2.0,
+     2.5
+    ]
+   },
+   "loops": [
+    "barrier",
+    "feature_set",
+    "hpo"
+   ],
+   "start_columns_by_timeframe": null
+  },
+  "research_window": {
+   "end_utc": "2026-08-26",
+   "seed": 42,
+   "start_utc": "2021-01-01",
+   "warmup_top_timeframe_bars": 200
+  },
+  "selection": {
+   "beam_width": 3
+  }
+ },
+ "path": [
+  {
+   "beam": [
+    5
+   ],
+   "family": "trade",
+   "loop": "barrier",
+   "mean_relative_logloss_skill": 0.08424165227063063,
+   "move": "forward",
+   "round": 1,
+   "trial": 5,
+   "validation_path": {
+    "cagr": 0.058101652161996586,
+    "calmar": 0.45554682902897575,
+    "max_drawdown": 0.127542655243246,
+    "profit_factor": 1.2877046087659316,
+    "trade_count": 179
+   }
+  }
+ ],
+ "proposals": [
+  {
+   "added_columns_by_timeframe": {
+    "15m": [],
+    "1h": [],
+    "4h": []
+   },
+   "atr_barrier_multiplier": 2.0,
+   "columns_by_timeframe": {
+    "15m": [
+     "ema20_minus_ema50_over_atr14",
+     "centered_rsi14",
+     "atr14_over_close",
+     "range_position20",
+     "log_volume_zscore50"
+    ],
+    "1h": [
+     "ema20_minus_ema50_over_atr14",
+     "centered_rsi14",
+     "atr14_over_close",
+     "range_position20",
+     "log_volume_zscore50"
+    ],
+    "4h": [
+     "ema20_minus_ema50_over_atr14",
+     "centered_rsi14",
+     "atr14_over_close",
+     "range_position20",
+     "log_volume_zscore50"
+    ]
+   },
+   "entry_edge_threshold": 0.34,
+   "entry_edge_threshold_constraint_met": true,
+   "label_horizon": "4h",
+   "loop": "barrier",
+   "mean_relative_logloss_skill": 0.08424165227063063,
+   "proposal": 1,
+   "removed_columns_by_timeframe": {
+    "15m": [],
+    "1h": [],
+    "4h": []
+   },
+   "selection_score_cagr_validation_path": 0.058101652161996586,
+   "stop_loss_atr_multiplier": 2.5,
+   "take_profit_atr_multiplier": 2.0,
+   "trial": 5,
+   "validation": {
+    "fold_2": {
+     "cagr": 0.2526369849417003,
+     "calmar": 5.682652498946621,
+     "max_drawdown": 0.04445758120675705,
+     "profit_factor": 2.5352530513975284,
+     "relative_logloss_skill": 0.05245210337759687,
+     "sharpe": 2.309136374914921,
+     "trade_count": 56
+    },
+    "fold_3": {
+     "cagr": -0.02551177294269602,
+     "calmar": -0.21545222936311642,
+     "max_drawdown": 0.11841034561633279,
+     "profit_factor": 0.8986666891281329,
+     "relative_logloss_skill": 0.10870343669152549,
+     "sharpe": -0.3722949368298912,
+     "trade_count": 65
+    },
+    "fold_4": {
+     "cagr": -0.02930467504404599,
+     "calmar": -0.2297637209148334,
+     "max_drawdown": 0.127542655243246,
+     "profit_factor": 0.8845192300008453,
+     "relative_logloss_skill": 0.09156941674276953,
+     "sharpe": -0.3617259468701495,
+     "trade_count": 58
+    }
+   },
+   "validation_path": {
+    "cagr": 0.058101652161996586,
+    "calmar": 0.45554682902897575,
+    "max_drawdown": 0.127542655243246,
+    "profit_factor": 1.2877046087659316,
+    "trade_count": 179
+   }
+  },
+  {
+   "added_columns_by_timeframe": {
+    "15m": [],
+    "1h": [],
+    "4h": []
+   },
+   "atr_barrier_multiplier": 2.0,
+   "columns_by_timeframe": {
+    "15m": [
+     "ema20_minus_ema50_over_atr14",
+     "centered_rsi14",
+     "atr14_over_close",
+     "range_position20",
+     "log_volume_zscore50"
+    ],
+    "1h": [
+     "ema20_minus_ema50_over_atr14",
+     "centered_rsi14",
+     "atr14_over_close",
+     "range_position20"
+    ],
+    "4h": [
+     "ema20_minus_ema50_over_atr14",
+     "centered_rsi14",
+     "atr14_over_close",
+     "range_position20",
+     "log_volume_zscore50"
+    ]
+   },
+   "entry_edge_threshold": 0.34,
+   "entry_edge_threshold_constraint_met": true,
+   "label_horizon": "4h",
+   "loop": "feature_set",
+   "mean_relative_logloss_skill": 0.08075605617070976,
+   "proposal": 2,
+   "removed_columns_by_timeframe": {
+    "15m": [],
+    "1h": [
+     "log_volume_zscore50"
+    ],
+    "4h": []
+   },
+   "selection_score_cagr_validation_path": 0.06498726856433557,
+   "stop_loss_atr_multiplier": 2.5,
+   "take_profit_atr_multiplier": 2.0,
+   "trial": 26,
+   "validation": {
+    "fold_2": {
+     "cagr": 0.23823137184597298,
+     "calmar": 5.358621980310601,
+     "max_drawdown": 0.04445758120675727,
+     "profit_factor": 2.2271613418072023,
+     "relative_logloss_skill": 0.049396637301930224,
+     "sharpe": 2.133937261782359,
+     "trade_count": 59
+    },
+    "fold_3": {
+     "cagr": -0.003810463208438142,
+     "calmar": -0.049725155203726105,
+     "max_drawdown": 0.07663049401910381,
+     "profit_factor": 0.9941114585622904,
+     "relative_logloss_skill": 0.10416884137381721,
+     "sharpe": -0.023487748409275797,
+     "trade_count": 56
+    },
+    "fold_4": {
+     "cagr": -0.02053465928869358,
+     "calmar": -0.16258282912290165,
+     "max_drawdown": 0.12630275533691668,
+     "profit_factor": 0.9149746254006946,
+     "relative_logloss_skill": 0.08870268983638185,
+     "sharpe": -0.25891749204148196,
+     "trade_count": 48
+    }
+   },
+   "validation_path": {
+    "cagr": 0.06498726856433557,
+    "calmar": 0.5145356361464951,
+    "max_drawdown": 0.1263027553369167,
+    "profit_factor": 1.3221790698076419,
+    "trade_count": 163
+   }
+  },
+  {
+   "added_columns_by_timeframe": {
+    "15m": [],
+    "1h": [
+     "close_minus_sma50_over_atr14"
+    ],
+    "4h": []
+   },
+   "atr_barrier_multiplier": 2.0,
+   "columns_by_timeframe": {
+    "15m": [
+     "ema20_minus_ema50_over_atr14",
+     "centered_rsi14",
+     "atr14_over_close",
+     "range_position20",
+     "log_volume_zscore50"
+    ],
+    "1h": [
+     "ema20_minus_ema50_over_atr14",
+     "centered_rsi14",
+     "atr14_over_close",
+     "range_position20",
+     "log_volume_zscore50",
+     "close_minus_sma50_over_atr14"
+    ],
+    "4h": [
+     "ema20_minus_ema50_over_atr14",
+     "centered_rsi14",
+     "atr14_over_close",
+     "range_position20",
+     "log_volume_zscore50"
+    ]
+   },
+   "entry_edge_threshold": 0.35,
+   "entry_edge_threshold_constraint_met": true,
+   "label_horizon": "4h",
+   "loop": "feature_set",
+   "mean_relative_logloss_skill": 0.08419477490462779,
+   "proposal": 3,
+   "removed_columns_by_timeframe": {
+    "15m": [],
+    "1h": [],
+    "4h": []
+   },
+   "selection_score_cagr_validation_path": 0.05622521812055825,
+   "stop_loss_atr_multiplier": 2.5,
+   "take_profit_atr_multiplier": 2.0,
+   "trial": 13,
+   "validation": {
+    "fold_2": {
+     "cagr": 0.19963518731196683,
+     "calmar": 4.490464435829965,
+     "max_drawdown": 0.04445758120675742,
+     "profit_factor": 2.2395017130547594,
+     "relative_logloss_skill": 0.05153265825280151,
+     "sharpe": 1.8776123998438716,
+     "trade_count": 56
+    },
+    "fold_3": {
+     "cagr": 0.006742912043314231,
+     "calmar": 0.08902105517445272,
+     "max_drawdown": 0.07574513726107027,
+     "profit_factor": 1.0583448048412656,
+     "relative_logloss_skill": 0.10927037331757228,
+     "sharpe": 0.1526642000392574,
+     "trade_count": 45
+    },
+    "fold_4": {
+     "cagr": -0.02412103000831789,
+     "calmar": -0.18335638267155,
+     "max_drawdown": 0.13155271530157955,
+     "profit_factor": 0.9173752341989447,
+     "relative_logloss_skill": 0.09178129314350958,
+     "sharpe": -0.2747120426906624,
+     "trade_count": 59
+    }
+   },
+   "validation_path": {
+    "cagr": 0.05622521812055825,
+    "calmar": 0.4273968651400625,
+    "max_drawdown": 0.1315527153015796,
+    "profit_factor": 1.314901835750681,
+    "trade_count": 160
+   }
+  }
+ ],
+ "round_count": 2,
+ "search_converged": true,
+ "trials_drawn_by_loop": {
+  "hpo": 40
+ }
+}

@@ -10,6 +10,8 @@ store/assets_artifacts/**
 !store/assets_artifacts/*/*_feature_set.json
 !store/assets_artifacts/*/*_barriers.json
 !store/assets_artifacts/*/*_coordinate_search_profile.json
+!store/assets_artifacts/*/*_coordinate_search.json
+!store/assets_artifacts/*/*_coordinate_search_trials.jsonl
 
 # agent and editor files: never part of this repository
 CLAUDE.local.md

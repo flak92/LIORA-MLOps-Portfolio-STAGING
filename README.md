@@ -247,7 +247,8 @@ program that writes each writes the same bytes for the same decisions. The coord
 `<TICKER>_coordinate_search.json`, where the search stands at a round boundary, and
 `<TICKER>_coordinate_search_trials.jsonl`, its ledger of scored states — one a line, appended and never
 rewritten. Their proof is that two runs of one profile, and a run interrupted and resumed, give the same
-bytes in both.
+bytes in both. Both are tracked even so: `ml_status.json` and `<TICKER>_README.md` are inside the proof and
+read them, so a clone without them could not reproduce the two files that quote them.
 
 Both sides run in containers from the same pins; `SEED`, `nthread=1`,
 `OMP_NUM_THREADS=1`, sequential Optuna and DuckDB's pinned orders are what make
