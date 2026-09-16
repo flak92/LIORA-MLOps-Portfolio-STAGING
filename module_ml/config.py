@@ -95,8 +95,11 @@ EVENT_RESOLUTION_NAMES = {               # the name of each code, used wherever
     EVENT_RESOLUTION_VERTICAL: "vertical",
     EVENT_RESOLUTION_AMBIGUOUS: "ambiguous",
 }
-LABEL_HORIZON_MINUTES = 240               # vertical barrier (240 min = 16 x 15m bars)
-LABEL_HORIZON_MS = LABEL_HORIZON_MINUTES * MILLISECONDS_PER_MINUTE
+# the vertical barrier, a duration token of the timeframe grammar: the coordinate search moves it a
+# token at a time, and one place turns a token into minutes — dataset.load_barriers()
+HORIZON_TOKEN_MINUTES = {"1h": 60, "2h": 120, "4h": 240, "8h": 480, "12h": 720, "1d": 1440}
+LABEL_HORIZON = "4h"                      # the experiment's own, until a promotion writes another
+LABEL_HORIZON_MINUTES = HORIZON_TOKEN_MINUTES[LABEL_HORIZON]   # 240 min = 16 x 15m bars
 
 # ---- folds: WARMUP | TRAIN | PURGE | OOS validation | final holdout
 FOLD_BOUNDS_UTC = ("2021-01-01", "2022-01-01", "2023-01-01", "2024-01-01",
@@ -135,6 +138,7 @@ EXECUTION_COST_RATE_PER_TRADE_SIDE = 0.0006              # taker + slippage, per
 ENTRY_EDGE_THRESHOLD_GRID = tuple(round(0.01 * i, 2) for i in range(61))   # 0.00 .. 0.60
 MINIMUM_TRADES_PER_VALIDATION_FOLD = 30  # selection guardrail, not an acceptance gate
 ANNUALISATION_PERIOD_15M_BARS = 96 * 365        # crypto trades 24/7
+MINUTES_PER_YEAR = 365 * 1440                   # the same 24/7 year, for a path measured in minutes
 # timeframes whose trend sign must agree with the side before an entry is taken
 MINIMUM_AGREEING_TREND_TIMEFRAMES = 2
 
@@ -226,6 +230,11 @@ def trials_sqlite(ticker):
 
 def feature_set_json(ticker):
     return artifact_dir(ticker) / f"{ticker}_feature_set.json"
+
+
+def barriers_json(ticker):
+    """The asset's promoted barrier geometry — absent, the frozen constants above are the asset's."""
+    return artifact_dir(ticker) / f"{ticker}_barriers.json"
 
 
 def asset_readme_md(ticker):

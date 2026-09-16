@@ -45,7 +45,7 @@ confirmation; the rest of the concept column states what the name means.
 | the canonical open of that minute | `entry_price` | `entry_price` | — | `p0` as an identifier (`P₀` stays in the equations) |
 | the take-profit price of a long, the stop of a short | `upper_barrier` | `upper_barrier` | upper_barrier | `upper`, ceiling, band |
 | the stop of a long, the take-profit of a short | `lower_barrier` | `lower_barrier` | lower_barrier | `lower`, floor, band |
-| the vertical barrier, in minutes (240 = 16 × 15m bars) | `LABEL_HORIZON_MINUTES`, `LABEL_HORIZON_MS` | — | 240-minute horizon | HORIZON_BARS, W, H |
+| the vertical barrier, a duration token of the timeframe grammar — `4h` by default, 240 minutes = 16 × 15m bars; one place turns the token into minutes, and every population, purge and eligibility mask is told that number | `LABEL_HORIZON`, `HORIZON_TOKEN_MINUTES`, `LABEL_HORIZON_MINUTES`; `load_barriers()` in `module_ml/dataset.py` | — | 240-minute horizon | HORIZON_BARS, W, H; a horizon in minutes where the token belongs; a second place that resolves a token |
 | the exclusive end of the event | `event_end_ts` | `event_end_ts` | — | exit time |
 | the price that closes the event | `exit_reference_price` | `exit_reference_price` | — | exit_ref |
 | how the event ended | `event_resolution` | `event_resolution`, `exit_counts.*` | upper_barrier / lower_barrier / vertical / ambiguous | reason, exit_reason |

@@ -60,7 +60,7 @@ def is_skill_no_worse_on_every_fold(row: dict, champion: dict) -> bool:
     return all(skill >= champion_skill for skill, champion_skill in zip(fold_skills(row), fold_skills(champion)))
 
 
-def trial_result(xy: dict, y_cls: np.ndarray, best: dict, close_1m: np.ndarray, columns_by_timeframe: dict) -> dict:
+def trial_result(xy: dict, y_cls: np.ndarray, best: dict, bars_1m: dict[str, np.ndarray], columns_by_timeframe: dict) -> dict:
     """Score one set: three boosters fitted as train.py fits them, their skill per fold, and — reported, never
     selected on — the strategy's threshold selection on their predictions."""
     x, feature_columns = dataset.build_x(xy["catalogue_values"], columns_by_timeframe, xy["timeframes"])
@@ -79,7 +79,7 @@ def trial_result(xy: dict, y_cls: np.ndarray, best: dict, close_1m: np.ndarray, 
         "p_neutral": np.array([row[3] for row in prediction_records], dtype=np.float64),
         "p_long": np.array([row[4] for row in prediction_records], dtype=np.float64),
     }
-    selection = strategy.entry_edge_threshold_selection(strategy.build_simulation_inputs(xy_candidate, close_1m, oos_predictions))
+    selection = strategy.entry_edge_threshold_selection(strategy.build_simulation_inputs(xy_candidate, bars_1m, oos_predictions))
     by_fold = selection["validation_by_fold"]
     return {
         "columns_by_timeframe": columns_by_timeframe,
@@ -155,7 +155,7 @@ def main() -> int:
         xy = dataset.load_xy(ticker)
         cat, timeframes = xy["catalogue"], xy["timeframes"]
         y_cls = model.to_class(xy["y"])
-        close_1m = strategy.load_close_1m(ticker)
+        bars_1m = strategy.load_bars_1m(ticker)
         active = dataset.load_feature_columns(ticker, cat)
         inputs = dataset.to_json_safe(build_search_inputs(best, active, cat))
 
@@ -179,7 +179,7 @@ def main() -> int:
             key = set_key(columns_by_timeframe, timeframes)
             if key in trial_index_by_set:
                 return trial_index_by_set[key]
-            row = trial_result(xy, y_cls, best, close_1m, columns_by_timeframe)
+            row = trial_result(xy, y_cls, best, bars_1m, columns_by_timeframe)
             trials.append({**row, "pass": state["pass_count"] + 1 if move else 0, "move": move})
             trial_index_by_set[key] = len(trials)
             write_state(ticker, state, timeframes)

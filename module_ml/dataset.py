@@ -1,5 +1,5 @@
 """Shared IO for the ML layer: load_catalogue — the one read of the feature layer's contract, once per stage — load_xy
-with the asset's feature set, load_feature_columns, build_x, write_json and load_json, and the parquet writer of the
+and build_xy with the asset's feature set, load_barriers, load_feature_columns, build_x, write_json and load_json, and the parquet writer of the
 label and prediction writers — twice by extraction, identical in module_features/dataset.py."""
 
 from __future__ import annotations
@@ -84,6 +84,23 @@ def load_feature_columns(ticker: str, cat: dict) -> dict[str, tuple[str, ...]]:
             for timeframe in config.timeframes(cat)}
 
 
+def load_barriers(ticker: str) -> dict:
+    """The asset's barrier geometry: the promoted file's when it exists, else the frozen constants of
+    the experiment. The horizon travels as a duration token and is turned into minutes here and
+    nowhere else, so the grid, the purge, the scored population and the trade's eligibility read one
+    number."""
+    path = config.barriers_json(ticker)
+    promoted = load_json(path) if path.exists() else {}
+    label_horizon = promoted.get("label_horizon", config.LABEL_HORIZON)
+    return {
+        "atr_barrier_multiplier": float(promoted.get("atr_barrier_multiplier", config.ATR_BARRIER_MULTIPLIER)),
+        "label_horizon": label_horizon,
+        "horizon_minutes": config.HORIZON_TOKEN_MINUTES[label_horizon],
+        "take_profit_atr_multiplier": float(promoted.get("take_profit_atr_multiplier", config.ATR_BARRIER_MULTIPLIER)),
+        "stop_loss_atr_multiplier": float(promoted.get("stop_loss_atr_multiplier", config.ATR_BARRIER_MULTIPLIER)),
+    }
+
+
 def build_x(catalogue_values: dict[str, np.ndarray], columns_by_timeframe: dict[str, tuple[str, ...]],
             timeframes: tuple[str, ...]) -> tuple[np.ndarray, tuple[str, ...]]:
     """The model's matrix from the catalogue's values: the set's features, timeframe-major and catalogue-order
@@ -94,8 +111,9 @@ def build_x(catalogue_values: dict[str, np.ndarray], columns_by_timeframe: dict[
 
 
 def load_xy(ticker: str) -> dict:
-    """X and Y on Y's decision grid, with the values of every catalogue column beside X and the contract that named
-    them; X may carry tail rows Y had to drop."""
+    """The asset's feature and label parquets read once and handed to build_xy: X and Y on Y's decision
+    grid, with the values of every catalogue column beside X and the contract that named them; X may
+    carry tail rows Y had to drop."""
     cat = load_catalogue(ticker)
     timeframes = config.timeframes(cat)
     con = duckdb.connect()
@@ -111,6 +129,16 @@ def load_xy(ticker: str) -> dict:
         decision_grids.append(per_timeframe["decision_ts"].astype(np.int64))
     label_events = con.execute(f"SELECT * FROM read_parquet('{config.label_events_parquet(ticker, cat)}') ORDER BY decision_ts").fetchnumpy()
     con.close()
+    return build_xy(cat, timeframes, catalogue_values, decision_grids, label_events,
+                    load_feature_columns(ticker, cat), load_barriers(ticker))
+
+
+def build_xy(cat: dict, timeframes: tuple[str, ...], catalogue_values: dict[str, np.ndarray],
+             decision_grids: list[np.ndarray], label_events: dict[str, np.ndarray],
+             columns_by_timeframe: dict[str, tuple[str, ...]], barriers: dict) -> dict:
+    """X and Y on Y's decision grid from arrays already in memory — the feature grids joined to Y by
+    position, every catalogue column narrowed to Y's rows and the set's columns stacked. It reads no
+    file, so a search that relabels an asset in process builds X and Y the way the stage does."""
     # the files are joined by position, so they must share one decision grid
     x_ts = decision_grids[0]
     assert all(np.array_equal(x_ts, grid) for grid in decision_grids[1:]), "per-timeframe feature parquets disagree on the decision grid"
@@ -118,9 +146,12 @@ def load_xy(ticker: str) -> dict:
     pos = np.searchsorted(x_ts, y_ts)
     assert np.array_equal(x_ts[pos], y_ts), "X/Y decision grids do not align"
     catalogue_values = {c: catalogue_values[c][pos] for c in config.catalogue_feature_ids(cat)}
-    x, feature_columns = build_x(catalogue_values, load_feature_columns(ticker, cat), timeframes)
+    x, feature_columns = build_x(catalogue_values, columns_by_timeframe, timeframes)
     return {
         "catalogue": cat,
+        # the geometry that produced Y, carried beside it: the horizon every population and every
+        # eligibility mask measures against, and the multipliers the trade's own exit is scaled by
+        "barriers": barriers,
         "timeframes": timeframes,
         "decision_ts": y_ts,
         "entry_ts": label_events["entry_ts"].astype(np.int64),

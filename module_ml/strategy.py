@@ -24,24 +24,20 @@ from __future__ import annotations
 import duckdb
 import numpy as np
 
-from . import config, dataset, validation
+from . import config, dataset, labels, validation
 
 EQUITY_CURVE_SAMPLE_INTERVAL_MINUTES = 1440    # one equity point per day for the dashboard curve
 
 
-def load_close_1m(ticker: str) -> np.ndarray:
-    """The canonical 1m closes over the research window — the path the backtest replays."""
+def load_bars_1m(ticker: str) -> dict[str, np.ndarray]:
+    """The canonical 1m series over the research window — the path the backtest re-walks for the
+    trade's own barriers and marks the open position to. One loader, the labels', not a second."""
     con = duckdb.connect(str(config.research_ohlcv_duckdb(ticker)), read_only=True)
     con.execute(f"SET memory_limit='{config.DUCKDB_MEMORY_LIMIT}'")
     con.execute("SET threads=1")   # float summation must not be reordered
-    close_1m = con.execute(
-        f"""SELECT close FROM ohlcv_1m_canonical
-            WHERE timestamp_ms >= {config.RESEARCH_START_MS}
-              AND timestamp_ms < {config.RESEARCH_END_MS}
-            ORDER BY timestamp_ms"""
-    ).fetchnumpy()["close"]
+    bars_1m = labels.load_research_1m(con)
     con.close()
-    return close_1m
+    return bars_1m
 
 
 def load_oos_predictions(ticker: str, cat: dict) -> dict[str, np.ndarray]:
@@ -56,21 +52,43 @@ def load_oos_predictions(ticker: str, cat: dict) -> dict[str, np.ndarray]:
     return oos_predictions
 
 
-def build_simulation_inputs(xy: dict, close_1m: np.ndarray, oos_predictions: dict[str, np.ndarray]) -> dict:
-    """The strategy's inputs: X and Y, the 1m path, the predictions, and the trend definition on every timeframe,
+def build_simulation_inputs(xy: dict, bars_1m: dict[str, np.ndarray], oos_predictions: dict[str, np.ndarray]) -> dict:
+    """The strategy's inputs: X and Y, the 1m series, the predictions, and the trend definition on every timeframe,
     read from the catalogue by name — whatever the feature set holds."""
     trend = {timeframe: xy["catalogue_values"][config.feature_id(config.TREND_GATE_FEATURE_DEFINITION, timeframe)]
              for timeframe in xy["timeframes"]}
-    return {"xy": xy, "close_1m": close_1m, "trend": trend, "oos_predictions": oos_predictions}
+    return {"xy": xy, "bars_1m": bars_1m, "trend": trend, "oos_predictions": oos_predictions}
 
 
 def load_simulation_inputs(ticker: str) -> dict:
     xy = dataset.load_xy(ticker)
-    return build_simulation_inputs(xy, load_close_1m(ticker), load_oos_predictions(ticker, xy["catalogue"]))
+    return build_simulation_inputs(xy, load_bars_1m(ticker), load_oos_predictions(ticker, xy["catalogue"]))
+
+
+def trade_barriers(side: np.ndarray, entry_price: np.ndarray, upper_barrier: np.ndarray,
+                   lower_barrier: np.ndarray, atr_barrier_multiplier: float,
+                   take_profit_atr_multiplier: float,
+                   stop_loss_atr_multiplier: float) -> tuple[np.ndarray, np.ndarray]:
+    """The trade's own barriers in price order — take-profit above and stop below for a long, mirrored
+    for a short: the label's own half-widths rescaled by what the trade asks of each side.
+
+    At tp = sl = m every scale is x / x = 1.0 and 1.0 * d = d, so the trade's barriers are the label's
+    to the bit, for every m. Recovering one sigma from the upper barrier instead — entry + (U - E)/m * tp
+    — reproduces the upper barrier and misses the lower by one unit in the last place on 2 % of rows,
+    which fill_price returns verbatim for a long stop: do not simplify this back to a sigma."""
+    take_profit_scale = take_profit_atr_multiplier / atr_barrier_multiplier
+    stop_loss_scale = stop_loss_atr_multiplier / atr_barrier_multiplier
+    return (entry_price + np.where(side > 0, take_profit_scale, stop_loss_scale) * (upper_barrier - entry_price),
+            entry_price - np.where(side > 0, stop_loss_scale, take_profit_scale) * (entry_price - lower_barrier))
 
 
 def signals_for_fold(simulation_inputs: dict, fold_id: int) -> dict:
-    """Signal arrays for one fold, aligned to the label-event grid."""
+    """Signal arrays for one fold on the label-event grid, and the trade's own event re-walked on the 1m
+    path for every entry the gate admits.
+
+    The walked set — the gate open, the entry minute traded, the horizon inside the fold — depends on
+    neither the threshold nor what the position was doing, so one walk serves the whole threshold grid:
+    every trade any threshold realises is in it, and the threshold enters in backtest() alone."""
     xy = simulation_inputs["xy"]
     oos_predictions = simulation_inputs["oos_predictions"]
     in_fold = oos_predictions["oos_fold_id"] == fold_id
@@ -89,16 +107,41 @@ def signals_for_fold(simulation_inputs: dict, fold_id: int) -> dict:
         & (side == np.sign(simulation_inputs["trend"][config.trend_gate_timeframe(xy["catalogue"])][pos]))
         & (agreeing_trend_timeframe_count >= config.MINIMUM_AGREEING_TREND_TIMEFRAMES)
     )
+    barriers = xy["barriers"]
+    horizon_minutes = barriers["horizon_minutes"]
+    entry_ts, entry_price = xy["entry_ts"][pos], xy["entry_price"][pos]
+    fold_start_ms, fold_end_ms = validation.fold_bounds(fold_id)
+    # eligibility must be decidable at t_0, so the maximum horizon is tested, not the event that follows
+    entry_eligible = (gate_open & xy["entry_observable"][pos]
+                      & (entry_ts >= fold_start_ms)
+                      & (entry_ts + horizon_minutes * config.MILLISECONDS_PER_MINUTE <= fold_end_ms))
+    eligible_rows = np.flatnonzero(entry_eligible)
+
+    upper_barrier, lower_barrier = trade_barriers(
+        side[eligible_rows], entry_price[eligible_rows],
+        xy["upper_barrier"][pos][eligible_rows], xy["lower_barrier"][pos][eligible_rows],
+        barriers["atr_barrier_multiplier"], barriers["take_profit_atr_multiplier"],
+        barriers["stop_loss_atr_multiplier"])
+    _, t_res, event_resolution, exit_reference_price = labels.triple_barrier(
+        simulation_inputs["bars_1m"], entry_ts[eligible_rows], upper_barrier, lower_barrier,
+        horizon_minutes)
+
+    # the trade's event scattered back onto the fold's decision grid: a row no threshold can take
+    # carries none, and backtest() reads a row only after entry_eligible admitted it
+    trade = {"event_end_ts": np.zeros(pos.size, dtype=np.int64),
+             "event_resolution": np.zeros(pos.size, dtype=np.int8),
+             "exit_reference_price": np.zeros(pos.size),
+             "upper_barrier": np.zeros(pos.size), "lower_barrier": np.zeros(pos.size)}
+    trade["event_end_ts"][eligible_rows] = labels.event_end_ts(entry_ts[eligible_rows], t_res, horizon_minutes)
+    trade["event_resolution"][eligible_rows] = event_resolution
+    trade["exit_reference_price"][eligible_rows] = exit_reference_price
+    trade["upper_barrier"][eligible_rows] = upper_barrier
+    trade["lower_barrier"][eligible_rows] = lower_barrier
     return {
         "directional_probability_edge": directional_probability_edge,
-        "side": side, "gate_open": gate_open,
-        "entry_observable": xy["entry_observable"][pos],
-        "entry_ts": xy["entry_ts"][pos], "event_end_ts": xy["event_end_ts"][pos],
-        "event_resolution": xy["event_resolution"][pos],
-        "entry_price": xy["entry_price"][pos],
-        "upper_barrier": xy["upper_barrier"][pos],
-        "lower_barrier": xy["lower_barrier"][pos],
-        "exit_reference_price": xy["exit_reference_price"][pos],
+        "side": side, "entry_eligible": entry_eligible,
+        "entry_ts": entry_ts, "entry_price": entry_price,
+        **trade,
     }
 
 
@@ -122,15 +165,11 @@ def backtest(simulation_inputs: dict, signals: dict, entry_edge_threshold: float
     c = config.EXECUTION_COST_RATE_PER_TRADE_SIDE
     fold_start_minute = (fold_start_ms - config.RESEARCH_START_MS) // config.MILLISECONDS_PER_MINUTE
     fold_minute_count = (fold_end_ms - fold_start_ms) // config.MILLISECONDS_PER_MINUTE
-    close_1m = simulation_inputs["close_1m"]
+    close_1m = simulation_inputs["bars_1m"]["close"]
     equity_1m = np.empty(fold_minute_count)
 
-    enter = (signals["gate_open"] & signals["entry_observable"]
-             & (np.abs(signals["directional_probability_edge"]) >= entry_edge_threshold))
-    # eligibility must be decidable at t_0, so the maximum horizon is tested, not the real event_end_ts
-    fits = ((signals["entry_ts"] >= fold_start_ms)
-            & (signals["entry_ts"] + config.LABEL_HORIZON_MS <= fold_end_ms))
-    take = np.flatnonzero(enter & fits)
+    take = np.flatnonzero(signals["entry_eligible"]
+                          & (np.abs(signals["directional_probability_edge"]) >= entry_edge_threshold))
 
     equity, cursor, in_pos_ms = 1.0, 0, 0
     trades = []
@@ -168,6 +207,7 @@ def backtest(simulation_inputs: dict, signals: dict, entry_edge_threshold: float
     returns_15m = np.diff(equity_15m) / equity_15m[:-1]
     return {
         "equity_1m": equity_1m,
+        "trade_returns": trade_returns,
         "sharpe": validation.sharpe_annualised(returns_15m),
         "max_drawdown": validation.max_drawdown(equity_1m),  # 1m path: intra-bar drawdown is real
         "trade_count": int(trade_returns.size),
@@ -179,9 +219,38 @@ def backtest(simulation_inputs: dict, signals: dict, entry_edge_threshold: float
     }
 
 
+# what a fold's result carries for the chained path and for nothing else: a path and a population
+INTERMEDIATE_RESULT_KEYS = ("equity_1m", "trade_returns")
+
+
 def pnl_block(result: dict) -> dict:
-    """Everything but the 1m path, which is an intermediate, not a report."""
-    return {k: v for k, v in result.items() if k != "equity_1m"}
+    """Everything but the 1m path and the trade returns, which are intermediates, not a report."""
+    return {k: v for k, v in result.items() if k not in INTERMEDIATE_RESULT_KEYS}
+
+
+def validation_path_block(validation_by_fold: dict[int, dict]) -> dict:
+    """The validation folds chained into one walk-forward path — each fold's 1m equity scaled by what the
+    folds before it settled at — and what that path earned, drew down and returned per unit of drawdown.
+    The scale runs left to right and the product is never written out: another association of the same
+    factors differs in the last bit.""" 
+    equity_scaled, trade_returns, minute_count, scale = [], [], 0, 1.0
+    for fold_id in config.VALIDATION_FOLD_IDS:
+        result = validation_by_fold[fold_id]
+        equity_scaled.append(result["equity_1m"] * scale)
+        trade_returns.append(result["trade_returns"])
+        minute_count += result["equity_1m"].size
+        scale *= result["final_equity"]
+    equity_validation_1m = np.concatenate(equity_scaled)
+    pooled_trade_returns = np.concatenate(trade_returns)
+    max_drawdown = validation.max_drawdown(equity_validation_1m)
+    cagr = validation.cagr(float(equity_validation_1m[-1]), minute_count)
+    return {
+        "cagr": cagr,
+        "max_drawdown": max_drawdown,
+        "calmar": validation.calmar(cagr, max_drawdown),
+        "profit_factor": validation.profit_factor(pooled_trade_returns),
+        "trade_count": int(pooled_trade_returns.size),
+    }
 
 
 def equity_curve(equity_1m: np.ndarray) -> dict:

@@ -259,8 +259,8 @@ without removing leakage. A classical embargo after the evaluated block
 after the OOS block.
 
 **Scoring** mirrors the purge at the other boundary: a fold scores only the
-supervised rows whose maximum 240-minute horizon fits inside the block
-(`entry_ts + LABEL_HORIZON_MS <= oos_end`), decided at t₀ — the real
+supervised rows whose maximum horizon fits inside the block
+(`entry_ts + the horizon <= oos_end`), decided at t₀ — the real
 `event_end_ts` is path-dependent, so admitting by it would let the future
 choose the scored population.
 
@@ -329,8 +329,8 @@ enter = |edge| ≥ τ ∧ max(p_long, p_short) > p_neutral ∧ side ≠ 0
 
 The **model decides the side; the 4H hierarchy gates it**. One unit position
 at a time, new signals ignored while in a position, and a signal is eligible
-only where its whole 240-minute horizon fits inside the fold
-(`entry_ts + LABEL_HORIZON_MS <= fold_end`) — decided at t₀, never by where the
+only where its whole horizon fits inside the fold
+(`entry_ts + the horizon <= fold_end`) — decided at t₀, never by where the
 trade actually ended.
 
 **PnL — one formula.** The simulation applies USDT-perpetual PnL algebra to the

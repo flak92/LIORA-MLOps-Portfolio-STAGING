@@ -35,7 +35,8 @@ def build_objective(xy: dict[str, np.ndarray]):
             validation.training_set(xy["entry_ts"], xy["event_end_ts"],
                                     xy["sample_valid"], oos_start),
             validation.scoring_set(xy["decision_ts"], xy["entry_ts"], xy["event_end_ts"],
-                                   xy["sample_valid"], oos_start, oos_end),
+                                   xy["sample_valid"], oos_start, oos_end,
+                                   xy["barriers"]["horizon_minutes"]),
         ))
 
     def objective(trial: optuna.Trial) -> float:
@@ -50,17 +51,24 @@ def build_objective(xy: dict[str, np.ndarray]):
     return objective
 
 
+def search_hyperparameters(xy: dict) -> optuna.Study:
+    """The asset's TPE search over the frozen space, sequential and seeded — the study itself, so a caller
+    reads the point it chose, that point's value and every point it drew from one object."""
+    study = optuna.create_study(
+        direction="minimize", sampler=optuna.samplers.TPESampler(seed=config.SEED)
+    )
+    study.optimize(build_objective(xy),
+                   n_trials=config.HYPERPARAMETER_SEARCH_TRIAL_COUNT, n_jobs=1)
+    return study
+
+
 def main() -> int:
     args = config.build_ticker_parser("Optuna TPE hyper-parameter search per asset").parse_args()
     optuna.logging.set_verbosity(optuna.logging.WARNING)
 
     for ticker in config.parse_tickers(args.tickers):
         xy = dataset.load_xy(ticker)
-        study = optuna.create_study(
-            direction="minimize", sampler=optuna.samplers.TPESampler(seed=config.SEED)
-        )
-        study.optimize(build_objective(xy),
-                       n_trials=config.HYPERPARAMETER_SEARCH_TRIAL_COUNT, n_jobs=1)
+        study = search_hyperparameters(xy)
         payload = {
             "hyperparameter_search_result": {
                 "best_params": study.best_trial.params,
