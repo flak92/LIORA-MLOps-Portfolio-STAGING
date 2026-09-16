@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import collections
 from datetime import UTC, datetime
 
 
@@ -134,18 +133,16 @@ def coordinate_search_block(ticker: str, best_params: dict, active_columns_by_ti
         return None
     search = dataset.load_json(path)
     ledger = config.coordinate_search_trials_jsonl(ticker)
-    # how many points each loop put through a fit: the ledger's lines for a loop that enumerates a grid,
-    # and the state file's own count for one that runs a study inside itself and offers only its answer, so
-    # the number the page shows is the whole exposure of the loop and not the part that happened to be kept
+    # the trials are the ledger's lines; how many points each loop put through a fit is the search's own
+    # number, written once at a round boundary and copied here — the page, the terminal and the state file
+    # show one number because one of them computed it
     trials = dataset.load_jsonl(ledger) if ledger.exists() else []
-    trial_count_by_loop = collections.Counter(row["loop"] for row in trials if row["loop"])
-    trial_count_by_loop.update(search["trials_drawn_by_loop"])
     inputs_current = profile_path.exists() and search["inputs"] == dataset.to_json_safe(
         coordinate_search.build_search_inputs(best_params, active_columns_by_timeframe, active_barriers,
                                               cat, dataset.load_json(profile_path)))
     return {
         "trial_count": len(trials),
-        "trial_count_by_loop": dict(sorted(trial_count_by_loop.items())),
+        "trial_count_by_loop": search["trial_count_by_loop"],
         "round_count": search["round_count"],
         "search_converged": search["search_converged"],
         "champion_trial_index": search["champion_trial_index"],

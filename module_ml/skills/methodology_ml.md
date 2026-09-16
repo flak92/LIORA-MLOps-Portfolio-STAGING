@@ -249,11 +249,11 @@ run with an uninterrupted one byte for byte.
 
 **What a loop drew, against what it kept.** `trial_count_by_loop` is each loop's
 whole exposure, not the part that survived: for a loop that enumerates a grid it
-is the ledger's lines, and for the `hpo` loop it is `trials_drawn_by_loop` —
-every point the sampler drew in every study it ran, pruned and completed alike.
-The point each study was handed is not among them: it is the state already in the
-ledger, and counting it would add one candidate per study that was never a
-candidate. The two are added where the snapshot is composed,
+is the ledger's lines, and for the `hpo` loop it is every point the sampler drew
+in every study it ran, pruned and completed alike — the study is handed no point,
+so there is nothing to subtract. The two are added once, by the search, at a round
+boundary; `status.py` and the terminal copy the number and neither recomputes it,
+because two readers adding the same two things is two places for them to disagree. The two are added where the snapshot is composed,
 so the page and the terminal read one number and do no arithmetic. Without it the
 `hpo` loop is invisible whenever it keeps nothing: it offers at most one candidate
 per beam member per round and none at all when the incumbent wins, so a search

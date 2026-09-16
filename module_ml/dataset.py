@@ -101,11 +101,16 @@ def load_feature_columns(ticker: str, cat: dict) -> dict[str, tuple[str, ...]]:
 
 def barriers_from(coordinates: dict) -> dict:
     """The barrier geometry a state carries, with its horizon token turned into minutes — the one place a
-    token becomes a number, whether it came from the promoted file or from a state of the search."""
-    return {**coordinates, "horizon_minutes": config.HORIZON_TOKEN_MINUTES[coordinates["label_horizon"]]}
+    token becomes a number, whether it came from the promoted file or from a state of the search.
+
+    Every coordinate is cast here too, by the register's own casts: a promoted file is JSON a hand may edit,
+    and `2` is an int where `2.0` is a float, which a state key compares as a different state."""
+    return {**coordinates,
+            **{name: config.BARRIER_COORDINATE_CASTS[name](coordinates[name])
+               for name in config.BARRIER_COORDINATE_NAMES},
+            "horizon_minutes": config.HORIZON_TOKEN_MINUTES[coordinates["label_horizon"]]}
 
 
-# twice by extraction
 def load_barriers(ticker: str) -> dict:
     """The asset's barrier geometry: the promoted file's when it exists, else the frozen constants of
     the experiment. The horizon travels as a duration token and is turned into minutes here and
@@ -114,10 +119,7 @@ def load_barriers(ticker: str) -> dict:
     path = config.barriers_json(ticker)
     promoted = load_json(path) if path.exists() else {}
     return barriers_from({
-        "atr_barrier_multiplier": float(promoted.get("atr_barrier_multiplier", config.ATR_BARRIER_MULTIPLIER)),
-        "label_horizon": promoted.get("label_horizon", config.LABEL_HORIZON),
-        "take_profit_atr_multiplier": float(promoted.get("take_profit_atr_multiplier", config.ATR_BARRIER_MULTIPLIER)),
-        "stop_loss_atr_multiplier": float(promoted.get("stop_loss_atr_multiplier", config.ATR_BARRIER_MULTIPLIER)),
+        name: promoted.get(name, start) for name, start in config.START_BY_COORDINATE_DEFAULT.items()
     })
 
 

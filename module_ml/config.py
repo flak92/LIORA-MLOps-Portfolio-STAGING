@@ -80,7 +80,16 @@ RESEARCH_START_MS = to_utc_ms(RESEARCH_START_UTC)
 RESEARCH_END_MS = to_utc_ms(RESEARCH_END_UTC)
 
 # ---- label contract: triple barrier resolved on the 1m path
-ATR_BARRIER_MULTIPLIER = 2.0     # barriers at entry_price +- this multiple of the ATR of the last closed barrier-timeframe bar
+# where each barrier coordinate stands until a promotion writes another: the geometry the chain falls back to
+# in dataset.load_barriers(), and the point the terminal pins an unsearched coordinate at
+# twice by extraction
+START_BY_COORDINATE_DEFAULT = {
+    "atr_barrier_multiplier": 2.0,
+    "label_horizon": "4h",
+    "stop_loss_atr_multiplier": 2.0,
+    "take_profit_atr_multiplier": 2.0,
+}
+ATR_BARRIER_MULTIPLIER = START_BY_COORDINATE_DEFAULT["atr_barrier_multiplier"]   # the ATR multiple the label's barriers stand at
 LABEL_BARRIER_ATR_TIMEFRAME = "1h"      # the timeframe whose last closed bar sets the barrier width — an entry of the hierarchy
 ATR_WILDER_SMOOTHING_PERIOD_BARS = 14   # the barrier's width, in bars of that timeframe — a label parameter, not a feature
 # how an event ended; the values are load-bearing — fill_price compares the
@@ -98,7 +107,7 @@ EVENT_RESOLUTION_NAMES = {               # the name of each code, used wherever
 # the vertical barrier, a duration token of the timeframe grammar: the coordinate search moves it a
 # token at a time, and one place turns a token into minutes — dataset.load_barriers()
 HORIZON_TOKEN_MINUTES = {"1h": 60, "2h": 120, "4h": 240, "8h": 480, "12h": 720, "1d": 1440}
-LABEL_HORIZON = "4h"                      # the experiment's own, until a promotion writes another
+LABEL_HORIZON = START_BY_COORDINATE_DEFAULT["label_horizon"]   # the experiment's own, until a promotion writes another
 LABEL_HORIZON_MINUTES = HORIZON_TOKEN_MINUTES[LABEL_HORIZON]   # 240 min = 16 x 15m bars
 
 # ---- folds: WARMUP | TRAIN | PURGE | OOS validation | final holdout

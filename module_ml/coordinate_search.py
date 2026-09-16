@@ -30,7 +30,7 @@ from . import barrier_search, config, dataset, feature_set_search, hpo, labels, 
 
 # one module per coordinate — the token a profile's `loops` names, the module that knows its moves and the
 # families it expands them in. A generator answers with the candidates it offers and, under
-# `asset["trials_drawn"]`, with how many points it put through a fit to find them: for a generator that
+# `asset["trial_count_drawn"]`, with how many points it put through a fit to find them: for a generator that
 # enumerates a grid those are the same points, and the core sees them as ledger lines; for one that runs a
 # study inside itself they are not, and the count would otherwise be invisible to every reader
 LOOP_MODULES = {config.COORDINATE_SEARCH_LOOP_BARRIER: barrier_search,
@@ -316,13 +316,18 @@ def main() -> int:
         state_file = dataset.load_json(path) if path.exists() else None
         if state_file is None or state_file["inputs"] != inputs:
             state_file = {"inputs": inputs, "beam": [], "champion_trial_index": None, "round_count": 0,
-                          "search_converged": False, "path": [], "trials_drawn_by_loop": {}}
+                          "search_converged": False, "path": [], "trial_count_by_loop": {}}
             ledger.unlink(missing_ok=True)
         # every line of the ledger, the ones a round interrupted after the last boundary wrote among them:
         # those are cache hits, because the round they belong to starts again at its first family
         trials = dataset.load_jsonl(ledger) if ledger.exists() else []
         trial_index_by_state = {state_key(theta(row)): index
                                 for index, row in enumerate(trials, start=1)}
+        # what the loops drew inside themselves, recovered rather than carried in a second key: the state's
+        # count is the ledger's lines plus those draws, and the lines are countable, so the difference is the
+        # draws. A fresh state carries neither and the difference is empty
+        drawn_by_loop = (collections.Counter(state_file["trial_count_by_loop"])
+                         - collections.Counter(row["loop"] for row in trials if row["loop"]))
         if state_file["search_converged"]:
             print(f"{ticker}: the search converged after {state_file['round_count']} rounds and {len(trials)} "
                   f"trials — {len(state_file['proposals'])} proposals in {path.name}", flush=True)
@@ -385,9 +390,9 @@ def main() -> int:
                     inherited = None      # the parent's own material, built only if a child inherits it
                     # the fits a generator spends inside itself are its own to count: zeroed before it is
                     # asked and read back after, so a generator that spends none reports none without saying so
-                    asset["trials_drawn"] = 0
+                    asset["trial_count_drawn"] = 0
                     candidates = LOOP_MODULES[loop].moves(parent_state, asset, profile, family)
-                    round_drawn[loop] += asset["trials_drawn"]
+                    round_drawn[loop] += asset["trial_count_drawn"]
                     for move, label, child, rebuild in candidates:
                         if rebuild == config.REBUILD_BACKTEST and inherited is None:
                             inherited = state_material(asset, parent_state, config.REBUILD_FITS, None)
@@ -410,8 +415,12 @@ def main() -> int:
             # flight carries the round it belongs to, and a run interrupted inside a round resumes at the
             # top of that round, every state it already scored a cache hit
             state_file["path"].extend(round_path)
-            state_file["trials_drawn_by_loop"] = dict(
-                collections.Counter(state_file["trials_drawn_by_loop"]) + round_drawn)
+            # one number per loop, written where the search knows it and copied by everything that shows it:
+            # the ledger's lines for a loop that enumerates a grid, plus the points a loop that runs a study
+            # inside itself drew and never turned into lines
+            drawn_by_loop += round_drawn
+            state_file["trial_count_by_loop"] = dict(
+                collections.Counter(row["loop"] for row in trials if row["loop"]) + drawn_by_loop)
             state_file["beam"] = list(beam)
             state_file["champion_trial_index"] = beam[0]
             state_file["round_count"] = round_number

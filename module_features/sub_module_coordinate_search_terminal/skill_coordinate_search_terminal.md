@@ -12,9 +12,8 @@ has no screen for choosing one, and refuses a run that names more than one, sayi
 `<TICKER>_catalogue.json` for the columns the search may admit, `<TICKER>_coordinate_search.json` for where
 the search stands — its beam, its champion, its path and its proposals — `<TICKER>_coordinate_search_trials.jsonl`
 for the trials themselves, and `<TICKER>_coordinate_search_profile.json` for what a hand last asked for. The
-counts it shows per loop are taken off the ledger's lines, plus `trials_drawn_by_loop` from the search file
-for a loop whose points never became lines — the hyper-parameter loop offers one answer and draws a whole
-study to find it, and the two sources added are that loop's whole exposure. It reads no
+counts it shows per loop are `trial_count_by_loop` from the search file, read and not recomputed: the search
+adds its own lines and the points its studies drew, once, at a round boundary. It reads no
 snapshot: `ml_status.json` is only as fresh as the last `make ml-status`, and a search that started a minute
 ago would read as absent.
 

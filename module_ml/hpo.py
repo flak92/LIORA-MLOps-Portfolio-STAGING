@@ -201,11 +201,11 @@ def moves(state: dict, asset: dict, profile: dict, family: str) -> tuple:
     beats the champion's own path is offered. When none is, the loop keeps nothing — which is an answer.
 
     The study's points are fits the search pays for and the ledger never sees, because only the one the study
-    chose becomes a state: the count goes back under `asset["trials_drawn"]` — every point the sampler drew,
+    chose becomes a state: the count goes back under `asset["trial_count_drawn"]` — every point the sampler drew,
     pruned and completed alike, and every one of them a point the study chose to try."""
     del profile, family
     study = search_hyperparameters(asset["xy_for"](state), asset["bars_1m"], asset.get("champion_by_fold"))
-    asset["trials_drawn"] = len(study.trials)
+    asset["trial_count_drawn"] = len(study.trials)
     log_trials(asset["ticker"], study, "coordinate_search", asset["round"])
     completed = study.get_trials(deepcopy=False, states=(optuna.trial.TrialState.COMPLETE,))
     admissible = sorted((trial for trial in completed

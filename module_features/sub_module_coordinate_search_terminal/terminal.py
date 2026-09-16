@@ -115,12 +115,8 @@ def _state_rows(ticker: str, profile: dict | None, search: dict | None,
     if search is None:
         rows.append({"parameter": "search", "value": "none"})
         return rows
-    # the loops that enumerate a grid are counted off the ledger; the one that runs a study inside itself
-    # left its count in the state file, because only the point it chose ever became a line
-    by_loop = dict(search["trials_drawn_by_loop"])
-    for row in trials:
-        if row["loop"]:
-            by_loop[row["loop"]] = by_loop.get(row["loop"], 0) + 1
+    # the search counted this at a round boundary; the terminal shows it and adds nothing to it
+    by_loop = search["trial_count_by_loop"]
     rows += [{"parameter": "search", "value": f"{len(trials)} trials in {search['round_count']} rounds"},
              {"parameter": "trials by loop",
               "value": " ".join(f"{loop} {count}" for loop, count in sorted(by_loop.items())) or "—"},
