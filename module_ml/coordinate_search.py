@@ -106,26 +106,23 @@ def trial_result(asset: dict, state: dict, material: dict) -> dict:
         "validation_path": selection["validation_path"],
         "entry_edge_threshold": selection["entry_edge_threshold"],
         "entry_edge_threshold_constraint_met": selection["entry_edge_threshold_constraint_met"],
-        strategy.selection_score_key(): selection[strategy.selection_score_key()],
+        strategy.SELECTION_SCORE_KEY: selection[strategy.SELECTION_SCORE_KEY],
     }
 
 
 # ---- the one selection: the objective the experiment froze, read per fold and over a whole state -------
 
 def fold_objective(row: dict) -> list[float]:
-    """What the gate compares fold by fold — the frozen objective's own fold measure, in the fold table's
-    order. The fold is the unit of robustness: a move has to be better on all three, not on average."""
-    measure = config.SELECTION_FOLD_MEASURE[config.SELECTION_OBJECTIVE]
-    return [row["validation"][f"fold_{fold_id}"][measure] for fold_id in config.VALIDATION_FOLD_IDS]
+    """What the gate compares fold by fold — each fold's Calmar ratio, in the fold table's order. The fold
+    is the unit of robustness: a move has to be better on all three, not on average."""
+    return [row["validation"][f"fold_{fold_id}"][config.SELECTION_FOLD_MEASURE]
+            for fold_id in config.VALIDATION_FOLD_IDS]
 
 
 def state_objective(row: dict) -> tuple:
-    """What the ranking maximises over a whole state, most significant first: under the model's own
-    objective the mean skill; under the growth rate, the chained validation path's CAGR, then its Calmar
-    ratio, then its profit factor. A path that never lost has no profit factor and is the best there is, so
-    it sorts first."""
-    if config.SELECTION_OBJECTIVE != config.SELECTION_OBJECTIVE_CAGR:
-        return (row["mean_relative_logloss_skill"],)
+    """What the ranking maximises over a whole state, most significant first: the chained validation path's
+    CAGR, then its Calmar ratio, then its profit factor. A path that never lost has no profit factor and is
+    the best there is, so it sorts first."""
     path = row["validation_path"]
     profit_factor = math.inf if path["profit_factor"] is None else path["profit_factor"]
     return (path["cagr"], path["calmar"], profit_factor)
@@ -135,11 +132,10 @@ def is_gate_cleared(row: dict, parent: dict, move: str) -> bool:
     """Whether a child may be kept at all: better than the state it came from on every validation fold, or,
     for a move that shrinks the state, no worse on any of them.
 
-    Under the growth rate the fold measure is a strategy number, so a state whose threshold fell back to the
-    grid floor — no point of the grid cleared the trade floor in every fold — is refused before it is
-    compared: its numbers stand at a threshold nothing qualified for."""
-    if (config.SELECTION_OBJECTIVE == config.SELECTION_OBJECTIVE_CAGR
-            and not row["entry_edge_threshold_constraint_met"]):
+    The fold measure is a strategy number, so a state whose threshold fell back to the grid floor — no point
+    of the grid cleared the trade floor in every fold — is refused before it is compared: its numbers stand
+    at a threshold nothing qualified for."""
+    if not row["entry_edge_threshold_constraint_met"]:
         return False
     if move == config.COORDINATE_SEARCH_MOVE_BACKWARD:
         return all(child >= own for child, own in zip(fold_objective(row), fold_objective(parent)))
@@ -200,7 +196,7 @@ def proposals_block(trials: list[dict], active_state: dict, champion_trial: int,
         "validation_path": row["validation_path"],
         "entry_edge_threshold": row["entry_edge_threshold"],
         "entry_edge_threshold_constraint_met": row["entry_edge_threshold_constraint_met"],
-        strategy.selection_score_key(): row[strategy.selection_score_key()],
+        strategy.SELECTION_SCORE_KEY: row[strategy.SELECTION_SCORE_KEY],
     } for rank, (index, row) in enumerate(ranked[:config.COORDINATE_SEARCH_PROPOSAL_COUNT], start=1)]
 
 
@@ -232,8 +228,7 @@ def build_search_inputs(best_params: dict, active_columns_by_timeframe: dict, ac
         "active_columns_by_timeframe": active_columns_by_timeframe,
         "active_barriers": {name: active_barriers[name] for name in config.BARRIER_COORDINATE_NAMES},
         "profile": profile,
-        "selection": {"objective": config.SELECTION_OBJECTIVE,
-                      "beam_width": config.COORDINATE_SEARCH_BEAM_WIDTH},
+        "selection": {"beam_width": config.COORDINATE_SEARCH_BEAM_WIDTH},
     }
 
 
@@ -248,17 +243,16 @@ def start_state(profile: dict, active_columns_by_timeframe: dict, active_barrier
 
 
 def objective_line(row: dict) -> str:
-    """A state's objective and its folds, in the words of whichever objective is frozen."""
-    measure = config.SELECTION_FOLD_MEASURE[config.SELECTION_OBJECTIVE]
-    return (f"{config.SELECTION_OBJECTIVE} {state_objective(row)[0]:+.4f} "
-            f"folds {measure} {'/'.join(f'{value:+.4f}' for value in fold_objective(row))} "
+    """A state's objective and the folds the gate reads."""
+    return (f"cagr {state_objective(row)[0]:+.4f} "
+            f"folds {config.SELECTION_FOLD_MEASURE} {'/'.join(f'{value:+.4f}' for value in fold_objective(row))} "
             f"trades {'/'.join(str(row['validation'][f'fold_{fold_id}']['trade_count']) for fold_id in config.VALIDATION_FOLD_IDS)}")
 
 
 def progress_line(ticker: str, state_file: dict, loop: str, family: str, label: str,
                   parent: dict, row: dict) -> str:
     return (f"{ticker} round {state_file['round_count'] + 1} {loop}/{family} {label} "
-            f"{config.SELECTION_OBJECTIVE} {state_objective(parent)[0]:+.4f} -> {state_objective(row)[0]:+.4f} "
+            f"cagr {state_objective(parent)[0]:+.4f} -> {state_objective(row)[0]:+.4f} "
             f"folds {'/'.join(f'{value:+.4f}' for value in fold_objective(row))}")
 
 

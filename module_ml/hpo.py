@@ -1,7 +1,6 @@
-"""Optuna TPE per asset, sequential and seeded, over the frozen search space. The objective is the one
-`SELECTION_OBJECTIVE` names: the CAGR of the chained validation path at the threshold the one selection rule
-would pick, or — under the model's own objective — the mean uniqueness-weighted log-loss over F2–F4. The
-final holdout is never touched here.
+"""Optuna TPE per asset, sequential and seeded, over the frozen search space. The objective is the CAGR of
+the chained validation path at the threshold the one selection rule would pick — the quantity the coordinate
+search selects on, so the parameters are tuned on it. The final holdout is never touched here.
 
 The stage is a function of X, Y and the frozen constants alone: it draws no point to start from, so the
 parameters file it writes is a function of the raw store and this code, never of what it wrote last.
@@ -44,21 +43,10 @@ def log_trials(ticker: str, trials: list[dict]) -> None:
             mlflow.log_metrics(trial["metrics"])
 
 
-def objective_direction() -> str:
-    """Which way the study runs, under the objective the experiment froze."""
-    return ("maximize" if config.SELECTION_OBJECTIVE == config.SELECTION_OBJECTIVE_CAGR else "minimize")
-
-
-def objective_key() -> str:
-    """The key the chosen point's value is published under, named for what it is."""
-    return ("best_cagr_validation_path" if config.SELECTION_OBJECTIVE == config.SELECTION_OBJECTIVE_CAGR
-            else "best_logloss")
-
-
-def trial_metric_key() -> str:
-    """The name one trial's value carries in the ledger."""
-    return ("cagr_validation_path" if config.SELECTION_OBJECTIVE == config.SELECTION_OBJECTIVE_CAGR
-            else "mean_validation_logloss")
+# the key the chosen point's value is published under, and the name one trial's value carries in the
+# ledger — each named for what it measures
+OBJECTIVE_KEY = "best_cagr_validation_path"
+TRIAL_METRIC_KEY = "cagr_validation_path"
 
 
 def fold_pruning_bound(sweep: dict[float, dict], measure: str) -> float:
@@ -83,32 +71,14 @@ def sweep_value(sweeps: dict[int, dict]) -> float:
         for threshold in thresholds)
 
 
-def build_objective(xy: dict[str, np.ndarray], bars_1m: dict[str, np.ndarray] | None = None,
+def build_objective(xy: dict[str, np.ndarray], bars_1m: dict[str, np.ndarray],
                     champion_by_fold: dict[int, dict] | None = None):
-    """The objective one trial is scored by, and the gates that stop it early when it cannot win."""
+    """The objective one trial is scored by, and the gates that stop it early when it cannot win.
+
+    One sweep of the threshold grid per fold, kept for the trial's life: the two gates read the best that
+    fold could still reach off it, and the trial's own value is read off the same three sweeps. Nothing is
+    replayed, because nothing has to be — a sweep is a deterministic function of the fold's predictions."""
     y_cls = model.to_class(xy["y"])
-    if config.SELECTION_OBJECTIVE != config.SELECTION_OBJECTIVE_CAGR:
-        folds = []
-        for fold_id in config.VALIDATION_FOLD_IDS:
-            oos_start, oos_end = validation.fold_bounds(fold_id)
-            folds.append((
-                validation.training_set(xy["entry_ts"], xy["event_end_ts"],
-                                        xy["sample_valid"], oos_start),
-                validation.scoring_set(xy["decision_ts"], xy["entry_ts"], xy["event_end_ts"],
-                                       xy["sample_valid"], oos_start, oos_end,
-                                       xy["barriers"]["horizon_minutes"]),
-            ))
-
-        def objective(trial: optuna.Trial) -> float:
-            params = model.suggest_params(trial)
-            losses = []
-            for (training_rows, train_weight), (scoring_rows, scoring_weight) in folds:
-                booster = model.fit(params, xy["x"][training_rows], xy["y"][training_rows], train_weight, xy["feature_columns"])
-                proba = model.predict_proba(booster, xy["x"][scoring_rows], xy["feature_columns"])
-                losses.append(validation.multiclass_logloss(y_cls[scoring_rows], proba, scoring_weight))
-            return float(np.mean(losses))
-
-        return objective
 
     def objective(trial: optuna.Trial) -> float:
         params = model.suggest_params(trial)
@@ -137,17 +107,17 @@ def trial_metrics(trial: optuna.trial.FrozenTrial) -> dict[str, float]:
     """A trial's value as far as it got: its own when it completed, its last reported fold when a gate
     stopped it — so every point the search drew reaches the ledger, which a null never would."""
     value = trial.value if trial.value is not None else trial.intermediate_values[max(trial.intermediate_values)]
-    return {trial_metric_key(): value}
+    return {TRIAL_METRIC_KEY: value}
 
 
-def search_hyperparameters(xy: dict, bars_1m: dict[str, np.ndarray] | None = None,
+def search_hyperparameters(xy: dict, bars_1m: dict[str, np.ndarray],
                            enqueue: dict | None = None,
                            champion_by_fold: dict[int, dict] | None = None) -> optuna.Study:
     """The asset's TPE search over the frozen space, sequential and seeded — the study itself, so a caller
     reads the point it chose, that point's value and every point it drew from one object. A point to start
     from is drawn first, before the sampler's own."""
     study = optuna.create_study(
-        direction=objective_direction(), sampler=optuna.samplers.TPESampler(seed=config.SEED)
+        direction="maximize", sampler=optuna.samplers.TPESampler(seed=config.SEED)
     )
     if enqueue is not None:
         study.enqueue_trial(enqueue)
@@ -179,8 +149,7 @@ def main() -> int:
 
     for ticker in config.parse_tickers(args.tickers):
         xy = dataset.load_xy(ticker)
-        bars_1m = (strategy.load_bars_1m(ticker)
-                   if config.SELECTION_OBJECTIVE == config.SELECTION_OBJECTIVE_CAGR else None)
+        bars_1m = strategy.load_bars_1m(ticker)
         # the stage has no champion to beat and no point to start from: it is a function of X, Y and the
         # frozen constants, so <TICKER>_parameters.json is a function of the raw store and this code and
         # never of its own last value. A point to start from belongs to the search's hpo loop, where the
@@ -189,7 +158,7 @@ def main() -> int:
         payload = {
             "hyperparameter_search_result": {
                 "best_params": study.best_trial.params,
-                objective_key(): study.best_value,
+                OBJECTIVE_KEY: study.best_value,
                 "trial_count": config.HYPERPARAMETER_SEARCH_TRIAL_COUNT,
             },
         }
@@ -197,7 +166,7 @@ def main() -> int:
         dataset.write_json(out, payload)
         log_trials(ticker, [{"params": trial.params, "metrics": trial_metrics(trial)}
                             for trial in study.trials])
-        print(f"{ticker} {out.name}: {objective_key()} {study.best_value:.6f} "
+        print(f"{ticker} {out.name}: {OBJECTIVE_KEY} {study.best_value:.6f} "
               f"(trial {study.best_trial.number})", flush=True)
     return 0
 

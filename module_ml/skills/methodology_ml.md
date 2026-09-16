@@ -222,15 +222,15 @@ it is the conservative one. The `hpo` loop appears in neither round because its
 study kept nothing: its one candidate starts from the point the state already
 holds, and here that point won.
 
-**One schema, whichever objective is frozen.** A trial's row carries the whole of
-Θ and every quantity both objectives read — the fold's skill and its Calmar ratio
-and CAGR and drawdown and profit factor, and the path they chain into — under one
-set of key names, whatever `SELECTION_OBJECTIVE` says. Only two things are keyed
-by the token: which of those the gate and the ranking read, and the name of the
-threshold's own score. That is what makes the regression of § 4 possible at all:
-flipping the token back re-reads the same rows by different keys rather than
-producing a different file, so the comparison is a projection and not a
-translation.
+**One row, one schema.** A trial's row carries the whole of Θ and every quantity
+measured on it — each fold's skill, Calmar ratio, CAGR, drawdown, profit factor
+and trade count, and the path they chain into — under one set of key names, and
+the selection reads some of them. The model's own skill is among the measured and
+among the reported; nothing selects on it. There was for two commits a second
+objective that did, and a constant that chose between them: it existed to prove
+that the refactor of the search changed no number, it proved it, and it is in the
+history rather than in the code. Keeping a branch alive for a token with one
+value is how the branch nobody runs stops being true.
 
 **Why the resume was written at a round boundary, and not sooner.** The first
 implementation moved `champion_trial` and the research path inside the round, and
@@ -409,10 +409,8 @@ model, call the same fold out-of-sample again.
 ## 7. Hyper-parameter search
 
 Optuna TPE (`seed = 42`), 3 sequential trials, in-memory study. The objective is
-the one `SELECTION_OBJECTIVE` names, so the parameters are tuned on the quantity
-the search selects on: the CAGR of the validation path at the threshold § 9's
-rule would pick, maximised — or, under the model's own objective, the mean
-**uniqueness-weighted** multiclass log-loss over F2–F4, minimised.
+the quantity the search selects on: the CAGR of the validation path at the
+threshold § 9's rule would pick, maximised.
 
 **The stage draws no point to start from.** It is a function of X, Y and the
 frozen constants, so `<TICKER>_parameters.json` is a function of the raw store
@@ -542,11 +540,12 @@ that rule a bar-based backtest silently assumes every gap fills at the barrier.
 
 where `⌢` is the chaining of § 4: each fold's 1-minute equity scaled by what the
 folds before it settled at, so the three years are one walk-forward path and its
-CAGR is the growth of one capital through them. The rule is keyed by
-`SELECTION_OBJECTIVE` — under the model's own objective it maximises the mean of
-the folds' Sharpe ratios instead — and it is the **same function** the stage and
-the coordinate search both call, so the chain and the search can never choose a
-different threshold for the same predictions.
+CAGR is the growth of one capital through them. It is the **same function** the
+stage and the coordinate search both call, so the chain and the search can never
+choose a different threshold for the same predictions. The rule reads what each
+fold settled at and nothing else: the path's drawdown and its profit factor need
+the folds' curves chained, its growth rate does not, and a selection walks
+sixty-one grid points.
 
 The trade floor keeps a threshold from winning on three or five trades with an
 accidentally high number. If no threshold on the 0.00–0.60 grid meets it, the run

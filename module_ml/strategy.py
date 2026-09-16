@@ -282,25 +282,23 @@ def equity_curve(equity_1m: np.ndarray) -> dict:
     return {"equity": np.round(equity_1m[idx], 6).tolist()}
 
 
-def selection_score_key() -> str:
-    """The key the chosen threshold's score is published under — named for what it is, so the payload never
-    says Sharpe where it holds a growth rate."""
-    return ("selection_score_cagr_validation_path" if config.SELECTION_OBJECTIVE == config.SELECTION_OBJECTIVE_CAGR
-            else "selection_score_mean_sharpe")
+SELECTION_SCORE_KEY = "selection_score_cagr_validation_path"
 
 
 def selection_score(validation_by_fold: dict[int, dict]) -> float:
-    """What a threshold is chosen on, under the objective the experiment froze: the CAGR of the chained
-    validation path, or the mean of the folds' Sharpe ratios. One rule for the stage and for the search, so
-    the chain and the search can never choose a different threshold for the same predictions."""
-    if config.SELECTION_OBJECTIVE == config.SELECTION_OBJECTIVE_CAGR:
-        return validation_path_block(validation_by_fold)["cagr"]
-    return float(np.mean([result["sharpe"] for result in validation_by_fold.values()]))
+    """What a threshold is chosen on: the CAGR of the chained validation path. One rule for the stage and
+    for the search, so the chain and the search can never choose a different threshold for the same
+    predictions.
+
+    It reads what each fold settled at and nothing else. The path's drawdown and its profit factor need the
+    folds' 1m curves chained; its growth rate does not, and a selection walks sixty-one grid points."""
+    return validation_path_cagr({fold_id: validation_by_fold[fold_id]["final_equity"]
+                                 for fold_id in config.VALIDATION_FOLD_IDS})
 
 
 def entry_edge_threshold_selection(simulation_inputs: dict) -> dict:
-    """The entry edge threshold chosen on the validation folds — the grid point maximising the frozen
-    objective among those clearing the trade floor, ties to the smaller threshold, the grid floor when none
+    """The entry edge threshold chosen on the validation folds — the grid point maximising the chained
+    path's growth rate among those clearing the trade floor, ties to the smaller threshold, the grid floor when none
     clears it — with the fold results at that point and the path they chain into. The one selection the
     stage and the coordinate search both run."""
     validation_rows = {fold_id: signals_for_fold(simulation_inputs, fold_id)
@@ -332,7 +330,7 @@ def entry_edge_threshold_selection(simulation_inputs: dict) -> dict:
     return {
         "entry_edge_threshold": entry_edge_threshold,
         "entry_edge_threshold_constraint_met": entry_edge_threshold_constraint_met,
-        selection_score_key(): chosen_score,
+        SELECTION_SCORE_KEY: chosen_score,
         "validation_by_fold": validation_by_fold,
         "validation_path": validation_path_block(validation_by_fold),
     }
@@ -355,7 +353,7 @@ def main() -> int:
         payload = {
             "entry_edge_threshold": entry_edge_threshold,
             "entry_edge_threshold_constraint_met": selection["entry_edge_threshold_constraint_met"],
-            selection_score_key(): selection[selection_score_key()],
+            SELECTION_SCORE_KEY: selection[SELECTION_SCORE_KEY],
             "execution_cost_rate_per_trade_side": config.EXECUTION_COST_RATE_PER_TRADE_SIDE,
             "validation": {f"fold_{fold_id}": pnl_block(r)
                            for fold_id, r in selection["validation_by_fold"].items()},

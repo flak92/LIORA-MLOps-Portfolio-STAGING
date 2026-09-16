@@ -28,7 +28,7 @@ def sample_block(metrics: dict) -> dict:
 def hyperparameter_search_result_block(hyperparameter_search_result: dict) -> dict:
     return {
         "trial_count": hyperparameter_search_result["trial_count"],
-        hpo.objective_key(): round(hyperparameter_search_result[hpo.objective_key()], 6),
+        hpo.OBJECTIVE_KEY: round(hyperparameter_search_result[hpo.OBJECTIVE_KEY], 6),
         "best_params": dict(sorted(hyperparameter_search_result["best_params"].items())),
     }
 
@@ -79,7 +79,7 @@ def strategy_block(strategy: dict) -> dict:
         "entry_edge_threshold": strategy["entry_edge_threshold"],
         "entry_edge_threshold_constraint_met":
             strategy["entry_edge_threshold_constraint_met"],
-        strategy_module.selection_score_key(): config.rounded(strategy[strategy_module.selection_score_key()], 6),
+        strategy_module.SELECTION_SCORE_KEY: config.rounded(strategy[strategy_module.SELECTION_SCORE_KEY], 6),
         "execution_cost_rate_per_trade_side": strategy["execution_cost_rate_per_trade_side"],
         "validation": {k: _pnl_block(v) for k, v in sorted(strategy["validation"].items())},
         "validation_path": {k: config.rounded(v, 6) if isinstance(v, float) or v is None else v
@@ -108,7 +108,7 @@ def proposal_block(proposal: dict) -> dict:
                             for k, v in sorted(proposal["validation_path"].items())},
         "entry_edge_threshold": proposal["entry_edge_threshold"],
         "entry_edge_threshold_constraint_met": proposal["entry_edge_threshold_constraint_met"],
-        strategy_module.selection_score_key(): config.rounded(proposal[strategy_module.selection_score_key()], 6),
+        strategy_module.SELECTION_SCORE_KEY: config.rounded(proposal[strategy_module.SELECTION_SCORE_KEY], 6),
     }
 
 
@@ -303,7 +303,7 @@ Each of the {len(config.timeframes(cat))} catalogue parquets carries {barriers['
 
 ## Model
 
-Search: {hyperparameter_search_result['trial_count']} Optuna trials, best {hpo.objective_key()} {hyperparameter_search_result[hpo.objective_key()]:.6f}. Winner: depth {best_params['max_depth']}, eta {best_params['eta']:.4f}, {best_params['num_boost_round']} rounds, subsample {best_params['subsample']:.3f}, colsample {best_params['colsample_bytree']:.3f}, min_child_weight {best_params['min_child_weight']}, lambda {best_params['lambda']:.4f}, alpha {best_params['alpha']:.4f}.
+Search: {hyperparameter_search_result['trial_count']} Optuna trials, best {hpo.OBJECTIVE_KEY} {hyperparameter_search_result[hpo.OBJECTIVE_KEY]:.6f}. Winner: depth {best_params['max_depth']}, eta {best_params['eta']:.4f}, {best_params['num_boost_round']} rounds, subsample {best_params['subsample']:.3f}, colsample {best_params['colsample_bytree']:.3f}, min_child_weight {best_params['min_child_weight']}, lambda {best_params['lambda']:.4f}, alpha {best_params['alpha']:.4f}.
 
 {markdown_table(["fold", "prior log-loss", "model log-loss", "rel. skill", "scored"], cls_rows)}
 

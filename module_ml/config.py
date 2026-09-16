@@ -161,15 +161,10 @@ ROUND_SCHEDULE = ((COORDINATE_SEARCH_LOOP_BARRIER, "trade"),
                   (COORDINATE_SEARCH_LOOP_FEATURE_SET, COORDINATE_SEARCH_MOVE_BACKWARD),
                   (COORDINATE_SEARCH_LOOP_HPO, "study"))
 COORDINATE_SEARCH_ROUND_LOOPS = tuple(dict.fromkeys(loop for loop, _ in ROUND_SCHEDULE))
-# the quantity every selection reads — the gate per fold, the ranking, the threshold's own choice and,
-# once the search tunes them, the hyper-parameters: one token, so one experiment moves all of them
-SELECTION_OBJECTIVE_RELATIVE_LOGLOSS_SKILL = "relative_logloss_skill"
-SELECTION_OBJECTIVE_CAGR = "cagr"
-SELECTION_OBJECTIVE = SELECTION_OBJECTIVE_CAGR
-# what the gate compares fold by fold under each objective: the model's own skill, or the growth a fold
-# earned per unit of the drawdown it took — the fold is the unit of robustness, the path the unit of the goal
-SELECTION_FOLD_MEASURE = {SELECTION_OBJECTIVE_RELATIVE_LOGLOSS_SKILL: "relative_logloss_skill",
-                          SELECTION_OBJECTIVE_CAGR: "calmar"}
+# what the gate compares fold by fold: the growth a fold earned per unit of the drawdown it took. The fold
+# is the unit of robustness and the validation path is the unit of the goal — the model's own skill is
+# measured and reported beside both, and selected on by nothing
+SELECTION_FOLD_MEASURE = "calmar"
 COORDINATE_SEARCH_BEAM_WIDTH = 3          # the branches a pass keeps; 1 is one champion, move by move
 # the barrier geometry a promotion writes, in the order a state keys it, and what each value is however a
 # hand wrote it in a grid: a multiplier is a float, a horizon a token of HORIZON_TOKEN_MINUTES
