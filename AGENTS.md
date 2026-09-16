@@ -285,6 +285,17 @@ config and never hand-edited: `<TICKER>_parameters.json`,
 `<TICKER>_coordinate_search.json`, `<TICKER>_README.md`, `<TICKER>_catalogue.json`
 and the four snapshots. A hand edit to one is a violation.
 
+**Drafted, never derived.** A drafted artifact is a hand's decision written down
+and never computed from another file: `to_crawl.md`, the paths a hand lists and
+the skills it marks for them; `<TICKER>_coordinate_search_profile.json`, the
+columns a hand admits to a search, the state it starts from, the grid of each
+coordinate and the loops of a round; and, once a hand has promoted one,
+`<TICKER>_feature_set.json` and `<TICKER>_barriers.json`. Each is written by one
+program — its sub-module's TUI, or the promotion — and each may equally be
+edited in the file, because the same decisions write the same bytes and a rewrite
+that changes nothing leaves `git status` clean. A stage that derives one is a
+violation.
+
 **Rule-derived structure over repeated project knowledge.** When a family —
 assets, venues, timeframes, paths, artifact files, payload keys, pipeline stages
 — is governed by one definition, derive the repeated representations from it
@@ -321,8 +332,9 @@ from its layer's grammar, never invented:
 | artifact keys | snake_case, the same word as the identifier that produced it; a count is `<what>_count`, a quantity with a unit `<what>_<unit>`, a share `_pct`, a formatted UTC string `_utc`, epoch milliseconds `_ms` | `scored_row_count`, `ffill_bars`, `coverage_pct`, `generated_at_utc` | a separate vocabulary for JSON; a bare plural (`gaps`) or an adjective (`ambiguous`) as a count; `n_`; `ret` for return |
 | features | `[<normaliser>_]<term>{_<operator>_<term>}_<timeframe>`, a term `[<series>_]<indicator><parameter>` or a bare series, read off the catalogue record — the rest is `module_features/skills/skill_feature_taxonomy.md` | `ema20_minus_ema50_over_atr14_4h`, `centered_rsi14_1h`, `range_position20_15m`, `close_minus_sma200_over_atr14_4h` | `feature_3`, `f_rsi`, `rsi_14`, `sma_200`, `trend_4h` |
 | stored columns | the quantity for OHLCV, `<what>_<unit>` for anything derived, `<subject>_<predicate>` for a boolean — and a column and the key that publishes it carry **one** name | `timestamp_ms`, `ffill_bars`, `zero_volume_bars`, `binance_valid` | `n_ffill`, a column and key that disagree |
-| Makefile targets | `<module>-<stage>` for a stage of a runtime module — run in a one-off container of that module's runner — and `<module>-all` for its chain; `tmux-<module>-<stage>` for the detached twin of a stage that outlives the terminal — only a stage that resumes may have one; a sub-module's own TUI takes `<module>-<what it opens>` and is run by `python3` on the host, never in a container — gum asks a hand in the terminal it was started from; `skills-crawl` and `skills-status` for the canon's crawler and its snapshot, run that way for the second reason too, the canon having no runner; only the lifecycle targets go bare (`all`, `build`, `help`, `on`, `off`, `all-record`), `on` / `off` being the presentation switch, and a ticker alias of a lifecycle target carries its own sunset note | `data-ingest`, `ml-hpo`, `features-all`, `tmux-ml-coordinate-search`, `skills-status`, `on` | a bare stage (`ingest`), a `docker-` twin of a stage (there is one way to run a stage), a target named after the tool (`docker-run`), a detached twin of a stage that cannot resume, a second switch pair (`start` / `stop`, `up` / `down`), a second Makefile carrying stage order of its own |
+| Makefile targets | `<module>-<stage>` for a stage of a runtime module — run in a one-off container of that module's runner — and `<module>-all` for its chain; `tmux-<module>-<stage>` for the detached twin of a stage that outlives the terminal — only a stage that resumes may have one; a sub-module's own TUI takes `<module>-<what it opens>` and is run by `python3` on the host, never in a container — gum asks a hand in the terminal it was started from, and a TUI does not resume, so it has no `tmux-` twin — `features-coordinate-search-terminal`; `skills-crawl` and `skills-status` for the canon's crawler and its snapshot, run that way for the second reason too, the canon having no runner; only the lifecycle targets go bare (`all`, `build`, `help`, `on`, `off`, `all-record`), `on` / `off` being the presentation switch, and a ticker alias of a lifecycle target carries its own sunset note | `data-ingest`, `ml-hpo`, `features-all`, `tmux-ml-coordinate-search`, `features-coordinate-search-terminal`, `skills-status`, `on` | a bare stage (`ingest`), a `docker-` twin of a stage (there is one way to run a stage), a target named after the tool (`docker-run`), a detached twin of a stage that cannot resume, a second switch pair (`start` / `stop`, `up` / `down`), a second Makefile carrying stage order of its own |
 | directories | `<category>_<detail>/` for a module; the stores are one folder `store/` whose children are `<content>/` — the container's `/store/<content>` read back onto the host; a raw store names its granularity with the compact timeframe token, `store/raw_<timeframe>/` | `module_*`, `store/`, `store/raw_1m` | a kind scattered through the alphabet, a store spelling its timeframe in sorting slots, `repository_module_<domain>/`, `store_<content>/` at the root, a child that repeats its parent's token (`store/store_raw_1m/`) |
+| sub-modules | `sub_module_<domain>/` inside the module, or the canon, that owns it — its own `config.py`, its own `main()`, no part in the chain's dataflow (§ The default choice) | `module_monitoring/sub_module_devops/`, `module_skills/sub_module_scalability_crawler/`, `module_features/sub_module_coordinate_search_terminal/` | a sub-module at the root; a sub-module of a sub-module; a sub-module that imports another module (D02) |
 | images | `liora-1m-pipeline`, one for the tree, built from the root `Dockerfile` | `liora-1m-pipeline` | compose's `<project>-<service>` default, an image per service, an image per asset, an image per module |
 | compose services | a runtime role, never an image or a ticker — the runners `data`, `features`, `ml`, the residents `dashboard`, `devops` | `ml`, `dashboard` | `pipeline`, a service named for an image or a tool, a service per asset stage |
 | store paths | `store/<content>/` on the host, `/store/<content>` inside a container, `STORE_<CONTENT>_DIR` the variable that names the one to the other | `store/raw_1m/`, `/store/raw_1m`, `STORE_RAW_1M_DIR` | a path derived from `__file__`, `/app/store/<content>` as an address, a store literal at the point of use |
@@ -367,13 +379,13 @@ The boundaries, each with the file that owns it: the Lean tree
 (`download_binance.py`, `download_bybit.py`, and `module_data/config.py` for the venue constants that carry the REST word `KLINE`), xgboost and optuna
 (`module_ml/model.py`, `module_ml/hpo.py`), mlflow (`module_ml/hpo.py`), numpy (every module that computes),
 argparse (`module_data/config.py`, `module_features/config.py`, `module_ml/config.py` — the one parser, twice by extraction —,
-`module_ml/coordinate_search_promote.py`, `module_skills/sub_module_scalability_crawler/crawl.py`, for its `-h`, `--help`), DuckDB SQL (every module that queries), the SVG
+`module_ml/coordinate_search_promote.py`, `module_skills/sub_module_scalability_crawler/crawl.py` and `module_features/sub_module_coordinate_search_terminal/terminal.py`, for their `-h`, `--help` and, in the terminal's case, the asset the launcher names), DuckDB SQL (every module that queries), the SVG
 and DOM attributes (every `*.js` of `module_monitoring`, its sub-module included), docker compose (`Makefile`,
 `docker-compose.yml`), tmux (`Makefile`), `urllib` (`module_monitoring/serve.py`,
 `module_monitoring/sub_module_devops/config.py` and both downloaders), a stage's
-command line over `subprocess` (`record.py`), the git command line over `subprocess` (`module_skills/sub_module_scalability_crawler/config.py`, for the root, and `module_skills/sub_module_scalability_crawler/crawl.py`, for the paths an add offers and the commit a report entry names), each vendor's command line over `subprocess` (`module_skills/sub_module_scalability_crawler/crawl.py`, named in `module_skills/sub_module_scalability_crawler/vendors_for_crawling.toml`), the gum command line over `subprocess` (`module_skills/sub_module_scalability_crawler/tui.py`, the crawler's TUI), the terminal's `NO_COLOR` and `TERM` (`module_skills/sub_module_scalability_crawler/config.py`, plain output), `http.server` (`module_monitoring/serve.py` and the panel's own),
+command line over `subprocess` (`record.py`), the git command line over `subprocess` (`module_skills/sub_module_scalability_crawler/config.py`, for the root, and `module_skills/sub_module_scalability_crawler/crawl.py`, for the paths an add offers and the commit a report entry names), each vendor's command line over `subprocess` (`module_skills/sub_module_scalability_crawler/crawl.py`, named in `module_skills/sub_module_scalability_crawler/vendors_for_crawling.toml`), the gum command line over `subprocess` (`module_skills/sub_module_scalability_crawler/tui.py` and `module_features/sub_module_coordinate_search_terminal/tui.py`, the two TUIs' one file), the terminal's `NO_COLOR` and `TERM` (`module_skills/sub_module_scalability_crawler/config.py` and `module_features/sub_module_coordinate_search_terminal/config.py`, plain output), `http.server` (`module_monitoring/serve.py` and the panel's own),
 `socket` and the Docker Engine API over its
-unix socket (`module_monitoring/sub_module_devops/`), and the file listing of the four pipeline stores
+unix socket (`module_monitoring/sub_module_devops/`), the `make` command line over `subprocess` (`module_features/sub_module_coordinate_search_terminal/terminal.py`, the two targets its actions start — the Makefile alone speaks tmux and docker compose), and the file listing of the four pipeline stores
 (`record.py`). A
 boundary is an exception the conventions name, not an inconsistency they
 tolerate.
@@ -449,7 +461,9 @@ to none of them and stays in the canon.
 
 A **sub-module** is the one boundary in this shape: `sub_module_<domain>/` inside
 the module, or the canon, that owns it, with its own `config.py`, its own `main()`
-and no part in the chain's dataflow. It exists twice. The DevOps panel is
+and no part in the chain's dataflow. It exists three times, so it is a convention:
+the directory grammar above carries its row, and a fourth is written to it rather
+than argued again. The DevOps panel is
 `module_monitoring/sub_module_devops/`, nested rather than promoted because the
 dashboard serves its own directory — a top-level module would have to be given a
 route, and the page reaches the browser as a static file instead; the panel adds
@@ -457,9 +471,16 @@ one route for its API alone, because an API is not a file, and the socket it hol
 is the reason it is a service of its own rather than a role of `serve.py`. The
 scalability crawler is `module_skills/sub_module_scalability_crawler/`, nested in
 the canon because it reads files against the canon, and owned by no
-runtime module because a hand may list a file of any of them.
-`sub_module_*` does not enter the directory grammar above: two occurrences are a
-coincidence, and a convention is minted only at the third.
+runtime module because a hand may list a file of any of them. The coordinate
+search terminal is `module_features/sub_module_coordinate_search_terminal/`,
+nested in the feature layer because the coordinates a search moves are that
+layer's own — the catalogue generates the columns a profile admits — and outside
+`module_ml` because it computes nothing and may import neither that module (D02)
+nor this one's `config.py`, which imports numpy at its thirteenth line: it runs
+on the host's `python3` and gum, and starts every stage through `make`. The two
+that draw a terminal share one `tui.py`, twice by extraction, and one skill,
+`module_skills/skill_tui_designer.md`, which crosses them and therefore sits in
+the canon.
 
 ## The shape — what holds the project together
 
@@ -480,7 +501,7 @@ is wrong.
 | D05 | one `docker-compose.yml` carries the whole topology, and one `Makefile` the stage order and the fan-out |
 | D06 | no module writes into another's source tree: what a stage writes lands in a store |
 | D07 | an asset is `ASSET` on the make line and `--tickers` at the process boundary — never an image or a service definition of its own |
-| D08 | neither the panel nor the crawler is a module: `module_monitoring/sub_module_devops/` is the monitoring module's, `module_skills/sub_module_scalability_crawler/` the canon's |
+| D08 | no sub-module is a module: `module_monitoring/sub_module_devops/` is the monitoring module's, `module_skills/sub_module_scalability_crawler/` the canon's, `module_features/sub_module_coordinate_search_terminal/` the feature layer's — each with its own `config.py` and `main()`, none in the chain's dataflow |
 | D09 | artifact names and keys move only with the register: every key of every payload has a row in `module_skills/glossary.md`, and a key added, dropped or renamed moves that row in the same commit. The feature layer's contract file `<TICKER>_catalogue.json`, the `catalogue` block in `features_status.json` beside `assets[].row_count_by_timeframe`, the `ticker` key in every row of `data_status.json`, and that snapshot's own measurement set — which `REPORT_dashboard_data_minimalism.md` argues field by field — are each registered there |
 | D10 | determinism is unchanged: the caps, the seed, the pinned orders (`module_skills/skill_determinism.md`) |
 | D11 | parity: the chain on the frozen raw store reproduces the nine BTC artifacts and the three computational snapshots, normalised, byte for byte against the reference list `README.md` § Parity. The files a hand drafts — `<TICKER>_coordinate_search_profile.json` and, once promoted, `<TICKER>_feature_set.json` and `<TICKER>_barriers.json` — stand outside it: no stage derives them. A change that reshapes one of the nine re-bases its line and no other — the gate is then a field-level before/after comparison, every kept field byte-identical, beside the lines held fixed |
@@ -491,6 +512,7 @@ is wrong.
 | D16 | the fan-out and the detached search run through `docker compose run --rm`; nothing is `exec`'d into a resident |
 | D17 | `skills_status.json` is written by `module_skills.sub_module_scalability_crawler.status` alone, a function of the skill matrix's paths and the reports; the reports by `module_skills.sub_module_scalability_crawler.crawl` alone, and `to_crawl.md` — its entries and its marks — by a hand, in the file or through that module's TUI, its header read off the tree |
 | D18 | the crawler gates nothing: no target of the chain, no service and no merge depends on it; it writes only its skill matrix, its reports and its snapshot, and a hand alone runs it |
+| D19 | the coordinate search terminal imports the standard library and its own package alone, and starts every stage through `make`: its import lines name no module of this tree but `from . import`, and no third-party package — `module_features/config.py` imports numpy at its thirteenth line and is never imported here — and neither `tmux` nor `docker` appears anywhere in it. It writes the one file `<TICKER>_coordinate_search_profile.json`, a hand alone runs it, one action per run, and it gates nothing |
 
 ## Skills absent here, described
 

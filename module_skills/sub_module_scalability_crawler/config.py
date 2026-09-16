@@ -35,4 +35,6 @@ OUTPUT_PLAIN = (bool(os.environ.get("NO_COLOR")) or os.environ.get("TERM") == "d
                 or not sys.stdout.isatty())
 PREVIEW_TABLE_LIMIT_ROWS = 10   # the files an add's preview lists before one line counts the rest
 # twice by extraction
+FILTER_PLACEHOLDER = "type part of a path — module_data/config.py or module_data"
+# twice by extraction
 SECONDS_PER_MINUTE = 60

@@ -50,6 +50,7 @@ Orientation: `module_features/README_module_features.md`
 |---|---|
 | `module_features/skills/skill_feature_taxonomy.md` | the timeframe register, the terms, the composition grammar, the scope nesting and the warm-up |
 | `module_features/skills/methodology_features.md` | every catalogued feature definition, equation by equation, with its histories and citations |
+| `module_features/sub_module_coordinate_search_terminal/skill_coordinate_search_terminal.md` | the coordinate search terminal: its five actions, what each screen holds and what each answer writes, the profile it drafts and the two `make` targets it starts |
 
 ## module_ml
 

@@ -241,22 +241,43 @@ responsibility.
 | the units, equal by value, each holder the ones it uses: `MILLISECONDS_PER_SECOND`, `MILLISECONDS_PER_MINUTE`, `MILLISECONDS_PER_DAY` in Python; `MILLISECONDS_PER_SECOND` and `SECONDS_PER_MINUTE` in the page, `MINUTES_PER_HOUR` and `HOURS_PER_DAY` in the Pipeline tab; `SECONDS_PER_MINUTE` in the crawler | `module_data/config.py`, `module_features/config.py`, `module_ml/config.py`, `module_skills/sub_module_scalability_crawler/config.py`; the browser's own in `module_monitoring/page.js` and `module_monitoring/data.js`, which import no config | a unit is a unit; importing one across a boundary would drag the module behind it |
 | `BYTES_PER_KIBIBYTE` | `module_data/config.py`, `module_ml/config.py`; the browser's own in `module_monitoring/page.js` | the same |
 | `DUCKDB_MEMORY_LIMIT` | `module_data/config.py`, `module_features/config.py`, `module_ml/config.py` | every connection of every module pins the same ceiling beside `threads=1` |
-| the store reads `STORE_ASSETS_ARTIFACTS_DIR`, `STORE_STATUS_DIR` | `module_data/config.py`, `module_features/config.py`, `module_ml/config.py`; `STORE_STATUS_DIR` also `module_monitoring/config.py` | the two stores every module of the chain touches, and the one the dashboard serves, each read as `Path(os.environ[...])` where it is used |
-| the descriptors `artifact_dir()`, `research_ohlcv_duckdb()` | `module_data/config.py`, `module_features/config.py`, `module_ml/config.py` | the asset folder and the database are the store the chain touches; the path grammar is one and is spelled once per owner |
-| `load_json()` | `module_ml/dataset.py`, `module_monitoring/serve.py` | two readers of the same JSON files |
+| the store reads `STORE_ASSETS_ARTIFACTS_DIR`, `STORE_STATUS_DIR`, each holder the one it uses | `module_data/config.py`, `module_features/config.py`, `module_ml/config.py`; `STORE_ASSETS_ARTIFACTS_DIR` also `module_features/sub_module_coordinate_search_terminal/config.py`; `STORE_STATUS_DIR` also `module_monitoring/config.py` and `module_skills/sub_module_scalability_crawler/config.py` | the two stores every module of the chain touches, the one the dashboard serves and the one each sub-module reads, each read as `Path(os.environ[...])` where it is used |
+| the descriptors `artifact_dir()`, `research_ohlcv_duckdb()`, each holder the ones it uses | `module_data/config.py`, `module_features/config.py`, `module_ml/config.py`; `artifact_dir()` also `module_features/sub_module_coordinate_search_terminal/config.py` | the asset folder and the database are the store the chain touches; the path grammar is one and is spelled once per owner |
+| `load_json()` | `module_ml/dataset.py`, `module_monitoring/serve.py`, `module_features/sub_module_coordinate_search_terminal/config.py` | the readers of the same JSON files — two stages and the terminal that reads what one of them wrote |
 | `to_utc_ms()` | `module_data/config.py`, `module_features/config.py`, `module_ml/config.py` | the window literals of two modules are turned into milliseconds by the same function |
 | `build_ticker_parser()`, `parse_tickers()` | `module_data/config.py`, `module_features/config.py`, `module_ml/config.py` | the one CLI every stage shares; `module_monitoring` runs no stage and parses no ticker argument |
 | `rounded()` | `module_data/config.py`, `module_ml/config.py` | the snapshots round the same way |
 | `RESEARCH_START_UTC`, `RESEARCH_END_UTC` (and their `_MS`) | `module_features/config.py` (the bars and the catalogue), `module_ml/config.py` (the labels and the folds) | the frozen window is the experiment's; each layer that bounds by it owns the literal |
-| `catalogue_json()` | `module_features/config.py`, `module_ml/config.py` | the writer names the contract it writes, the reader the contract it reads |
+| `catalogue_json()` | `module_features/config.py`, `module_ml/config.py`, `module_features/sub_module_coordinate_search_terminal/config.py` | the writer names the contract it writes, the reader the contract it reads, and the terminal the columns it offers a hand |
 | `feature_id()` | `module_features/config.py`, `module_ml/config.py` | the grammar of `module_features/skills/skill_feature_taxonomy.md`, two lines, restated where X's columns are named |
 | `TREND_GATE_FEATURE_DEFINITION`, equal by value | `module_features/config.py` (the first record of the catalogue), `module_ml/config.py` (the same name as a literal) | the strategy reads the trend definition by name from the contract's columns |
-| `to_json_safe()`, `write_json()` | `module_features/dataset.py`, `module_ml/dataset.py` | the one canonical JSON form every published object takes — the contract, the snapshots, the artifacts |
+| `to_json_safe()`; the canonical JSON form of `write_json()`, equal by value | `to_json_safe()` in `module_features/dataset.py`, `module_ml/dataset.py`; the form in those two, in `module_skills/sub_module_scalability_crawler/status.py` and in `module_features/sub_module_coordinate_search_terminal/config.py`, the last two without `to_json_safe()`, holding no numpy value to canonicalise | the one canonical JSON form every published object takes — the contract, the snapshots, the artifacts, and the two files a hand drafts through a TUI |
 | `write_parquet()` | `module_features/dataset.py`, `module_ml/dataset.py` | the repr round-trip that makes a parquet byte-reproducible |
+| `tui.py`, the whole file, byte for byte — the gum layer of a sub-module that draws a TUI | `module_skills/sub_module_scalability_crawler/tui.py`, `module_features/sub_module_coordinate_search_terminal/tui.py` | one module speaks gum in each, and a package for what two sub-modules share would make `module_features` import `module_skills` (D02). Every sentence of its own lives in its sub-module's `config.py` — `FILTER_PLACEHOLDER` among them — so the two copies are one file |
+| `OUTPUT_PLAIN` and the three conditions it reads — `NO_COLOR`, `TERM`, `sys.stdout.isatty()` | `module_skills/sub_module_scalability_crawler/config.py`, `module_features/sub_module_coordinate_search_terminal/config.py` | plain output follows the environment and is never a flag; each TUI reads its own |
+| the screen helpers `_option_rows()`, `_step_rows()`, `_step_answer()`, `_cancelled_exit_code()`, `_failure_exit_code()` | `module_skills/sub_module_scalability_crawler/crawl.py`, `module_features/sub_module_coordinate_search_terminal/terminal.py` | the screen order is one skill's — `skill_tui_designer.md` — and these five are how it is obeyed |
+| the descriptors `coordinate_search_json()`, `coordinate_search_profile_json()` | `module_ml/config.py`, `module_features/sub_module_coordinate_search_terminal/config.py` | the stage names the file it writes, the terminal the file it drafts and the one it reads back |
 | `wilder_smoothing()`, `atr()`, `asof_index()` | `module_features/indicators.py`, `module_ml/labels.py` | the label defines its own barrier scale, and aligns to the last closed bar the same way the catalogue does |
 
 The gate at every commit: the rows equal by value compare equal as values, the
 bodies of every other copy as syntax trees, and `git grep "from module_"` inside any module finds only the module itself.
+
+## Coordinate search terminal
+
+The names of `module_features/sub_module_coordinate_search_terminal` — the hand's
+instrument over the coordinate search. Its rules are that sub-module's
+`skill_coordinate_search_terminal.md`, and the standards of its screens
+`module_skills/skill_tui_designer.md`, the canon's, which every TUI of this tree
+obeys.
+
+| concept | code | artifact key | UI label | never |
+|---|---|---|---|---|
+| the terminal: the feature layer's sub-module that drafts an asset's search profile, starts the search in its session, reads the state it writes and promotes one of its proposals — and computes nothing | `sub_module_coordinate_search_terminal`; `make features-coordinate-search-terminal` | — | Coordinate search terminal | a cockpit, a console, a dashboard; a second name for the search itself; a TUI that computes, schedules or gates |
+| the one file it writes | `write_json()`, `coordinate_search_profile_json()` | `<TICKER>_coordinate_search_profile.json` | — | a second file; a file in the sub-module's own folder, which `module_ml` would then read across a tree (D06) |
+| how it starts a stage: the make command line, and no other | `_make()`, `SEARCH_TARGET`, `PROMOTE_TARGET` | — | the `command` line of a plan, verbatim | a tmux or docker command line anywhere but the Makefile; a stage order known to the terminal |
+| where the asset's profile stands against the search recorded under it — the one comparison the terminal makes, on parsed objects and not on bytes | `_profile_state()` | — | `not drafted` / `no search` / `matches the search` / `differs from the search` | `inputs_current`, which folds the parameters, the catalogue and the asset's own state and stays the page's |
+| the grid each coordinate is searched over — one preset, so a grid is a decision of the file and not of a form | `GRID_BY_COORDINATE_DEFAULT` | `grid_by_coordinate` | grid; points | a grid typed into a prompt; a value the register does not carry |
+| the five actions, one per run | `_write_search_profile()`, `_write_coordinate_search()`, `_recorded_search_tables()`, `_write_promoted_proposal()` | — | draft; search; status; promote; quit | stop (a hand attaches to the session and interrupts it); holdout (the promotion's chain computes F5); a second menu after the action |
 
 ## Artifacts
 

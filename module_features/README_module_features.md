@@ -105,6 +105,17 @@ table, cited by its *responsibility* column and never repeated.
 | `__init__.py` | The package that makes `python -m module_features.<stage>` a command (§ Stages), its docstring the module's responsibility in one line. | It names the register, the bars, the kernels, the catalogue, the contract and the snapshot, and imports nothing. | The same `python -m module_features.<stage> --tickers <TICKER>` runs in a one-off container of the `features` runner (§ Stages) — the launcher setting the five `STORE_*_DIR` — the command `docker compose run --rm -T features` carries unchanged whichever host starts it. | COMPUTE — one stage, one one-off process |
 | the module's documents — `README_module_features.md` and `skills/` | This orientation and the normative documents of `skills/`, filed by ownership (`../AGENTS.md` § The default choice). | The orientation points at the documents beside it (§ Its normative skills), and every rule about this module sits in `skills/` (`../AGENTS.md` § Canonical vocabulary, the row *a module's own skills*). | Tracked files under `module_features/` that no stage and no route reads, travelling with the code beside them — the same paths beside the code wherever the code is. | no row — a document that travels with the task's code, seated beside its module |
 
+## Its sub-module
+
+`sub_module_coordinate_search_terminal/` is the hand's instrument over the coordinate search
+`module_ml` computes: it drafts the asset's search profile, starts the search through the Makefile, reads the
+state that search writes and promotes one of its proposals. It is nested here because the coordinates a search
+moves are this layer's own — the catalogue generates the columns a profile may admit — and it computes
+nothing: it runs on the host's `python3` and gum, imports the standard library and its own package alone, and
+writes one file, `<TICKER>_coordinate_search_profile.json`, in the store. Its orientation is
+`sub_module_coordinate_search_terminal/README_sub_module_coordinate_search_terminal.md`, its rules the skill
+beside it, and the standards of its screens `../module_skills/skill_tui_designer.md`.
+
 ## Its normative skills
 
 | document | answers |

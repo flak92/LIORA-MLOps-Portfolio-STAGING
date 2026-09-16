@@ -86,6 +86,11 @@ features-status: ## features_status.json -> store/status: the catalogue's facts 
 	$(call basket,features,module_features.status)
 features-all:    ## the feature chain in order
 	$(MAKE) features-bars features-catalogue features-status
+# the feature layer's own terminal, on the host: python3 and gum, no runner and no dependency — it computes
+# nothing, writes the asset's search profile, and starts every stage through this Makefile. It gates nothing and
+# no target of the chain depends on it; it does not resume, so it has no tmux twin
+features-coordinate-search-terminal: ## the coordinate search's TUI: the asset's profile and the search recorded under it, then one action — draft the profile, start the search detached, read its tables, or promote a proposal — then it closes; run it in a terminal
+	python3 -B -m module_features.sub_module_coordinate_search_terminal.terminal --tickers $(if $(ASSET),$(ASSET),$(TICKERS_CSV))
 
 ml-labels:       ## triple-barrier labels on the canonical 1m path
 	$(call fanout,ml,module_ml.labels,$(JOBS))
