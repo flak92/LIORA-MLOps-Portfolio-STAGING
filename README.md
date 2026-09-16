@@ -236,7 +236,7 @@ Every number here is reproducible. The proof, repeatable on any host:
 The files a hand drafts stand outside this proof — `<TICKER>_coordinate_search_profile.json` and, once
 promoted, `<TICKER>_feature_set.json` and `<TICKER>_barriers.json`: no stage derives them, and the one
 program that writes each writes the same bytes for the same decisions. The coordinate search's own two files are outside it too, being a hand's stage rather than the chain's:
-`<TICKER>_coordinate_search.json`, where the search stands at the end of a round, and
+`<TICKER>_coordinate_search.json`, where the search stands at a round boundary, and
 `<TICKER>_coordinate_search_trials.jsonl`, its ledger of scored states — one a line, appended and never
 rewritten. Their proof is that two runs of one profile, and a run interrupted and resumed, give the same
 bytes in both.

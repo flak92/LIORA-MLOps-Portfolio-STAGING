@@ -168,22 +168,27 @@ Two files hold what the search knows, and the split is what keeps its own record
 proportional to what it learns: `<TICKER>_coordinate_search_trials.jsonl` is the
 ledger — one scored state a line, appended, never rewritten, so writing a trial
 costs that trial and not the trials before it — and
-`<TICKER>_coordinate_search.json` is where the search stands at the end of a
-round, written there and nowhere else, so its size does not grow with the search
-at all. An interrupted run resumes at the top of the round the state records, the
-ledger lines that round already wrote being cache hits; a run interrupted before
-its first round ends has no state, and its ledger is discarded rather than
-trusted, because nothing on disk yet says which experiment those lines belong to.
-A finished run is read, not rewritten. The state's `inputs` — the window with its warm-up and seed,
-`best_params`, the catalogue's columns, the asset's own state, the profile and
-the selection the experiment froze — are the one copy of other files' content an
-artifact carries, compared by equality when the stage is rerun and again by
-`ml-status`, which publishes `inputs_current`. The selection is in there because
-flipping the objective is a different experiment, not a different mood: without
-it a rerun under the other objective would resume this one's trials under rules
-they were not scored by. A promotion, a retuning, a catalogue change or an edited
-profile leaves a recorded search describing a state that has gone, and the page
-then states that instead of comparing against a baseline it no longer has.
+`<TICKER>_coordinate_search.json` is where the search stands at a round
+boundary, written at the top of each round and nowhere else, so its size does not
+grow with the search at all. The round's own work follows that one write, so the
+one call leaves both the state a round starts from and the state the last round
+left, and the file exists before the ledger's first line: every line the ledger
+holds has a state that owns it. That is a guarantee of the order the loop is
+written in, not a property of where a run happens to stop. An interrupted run
+resumes at the top of the round the state records, the ledger lines that round
+already wrote being cache hits — during the baseline trial as much as at a
+boundary, because there the state is on disk and the ledger has not been created
+yet. A finished run is read, not rewritten. The state's `inputs` — the window
+with its warm-up and seed, `best_params`, the catalogue's columns, the asset's
+own state, the profile and the selection the experiment froze — are the one copy
+of other files' content an artifact carries, compared by equality when the stage
+is rerun and again by `ml-status`, which publishes `inputs_current`. The
+selection is in there because flipping the objective is a different experiment,
+not a different mood: without it a rerun under the other objective would resume
+this one's trials under rules they were not scored by. A promotion, a retuning,
+a catalogue change or an edited profile leaves a recorded search describing a
+state that has gone, and the page then states that instead of comparing against
+a baseline it no longer has.
 
 **What a round costs is a function of the hyper-parameters it is measured under.**
 The numbers below are BTC with a beam of three, all three loops and the whole
@@ -234,7 +239,7 @@ value is how the branch nobody runs stops being true.
 
 **Why the resume was written at a round boundary, and not sooner.** The first
 implementation moved `champion_trial` and the research path inside the round, and
-the state file is written after every scored trial, so a run stopped with Ctrl-C
+wrote the state file after every scored trial, so a run stopped with Ctrl-C
 resumed its round from the beam the round had already reached and appended each
 accepted expansion a second time — 61 scored states where an uninterrupted run
 scored 59. The round is the unit of resume precisely because a replay must begin

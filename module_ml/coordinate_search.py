@@ -11,10 +11,12 @@ optimum.
 
 Two files hold what the search knows. `<TICKER>_coordinate_search_trials.jsonl` is the ledger: one scored
 state a line, appended and never rewritten, the line's number the trial's index. `<TICKER>_coordinate_search.json`
-is where the search stands at the end of a round — what it was conditioned on, its beam, its champion, its
-path and its proposals — and it is written there and nowhere else. So an interrupted run resumes at the top
-of its round without a refit, the lines the interrupted round wrote being cache hits, and a finished run is
-read, not rewritten. Promotes nothing: the proposals are read by a hand and copied by coordinate_search_promote."""
+is where the search stood when a round began — what it was conditioned on, its beam, its champion, its path
+and its proposals — written at the top of a round and nowhere else, so it is on disk before the ledger's
+first line. An interrupted run therefore resumes at the top of its round without a refit, wherever it was
+stopped, the lines that round already wrote being cache hits; and a finished run is read, not rewritten.
+
+Promotes nothing: the proposals are read by a hand and copied by coordinate_search_promote."""
 
 from __future__ import annotations
 
@@ -202,11 +204,14 @@ def proposals_block(trials: list[dict], active_state: dict, champion_trial: int,
 
 def write_round_state(ticker: str, state_file: dict, trials: list[dict], active_state: dict,
                       timeframes: tuple[str, ...]) -> None:
-    """Where the search stands, written once, at the end of a round — the one place this file is written.
+    """Where the search stood when the round about to run began — the one place this file is written.
 
-    The trials are the ledger beside it, appended a line at a time, so the state is a fixed handful of keys
-    and the proposals are derived once a round rather than once a trial. That is what makes the search's own
-    record grow with what it gains: the ledger by one line, this file not at all."""
+    Written at the top of a round, so it exists before the ledger's first line and every line the ledger
+    holds has, on disk, the experiment it belongs to; the write that records a finished search is this same
+    write one iteration later. The trials are the ledger beside it, appended a line at a time, so the state
+    is a fixed handful of keys and the proposals are derived once a round rather than once a trial. That is
+    what makes the search's own record grow with what it gains: the ledger by one line, this file not at
+    all."""
     state_file["proposals"] = proposals_block(trials, active_state, state_file["champion_trial"] or 1, timeframes)
     dataset.write_json(config.coordinate_search_json(ticker), state_file)
 
@@ -317,17 +322,24 @@ def main() -> int:
             trial_index_by_state[key] = len(trials)
             return len(trials)
 
-        if not trials:
-            start = start_state(profile, active_columns, active_barriers, best, timeframes)
-            index = score(start, None, None, None, None, config.REBUILD_FITS, None)
-            print(f"{ticker} start state {objective_line(trials[index - 1])}", flush=True)
-        # trial 1 is the state the search started from — the champion until a family keeps a move. The beam
-        # in flight is a local: what the file carries is the beam the last round ended on, because the round
-        # is the unit of resume and a replay has to start its round where the interrupted one started it
-        beam = state_file["beam"] or [state_file["champion_trial"] or 1]
-        state_file["champion_trial"] = state_file["champion_trial"] or beam[0]
-
-        while not state_file["search_converged"]:
+        # The state is written at the top of a round, and it says where the search stood when that round
+        # began — which, for the first round, is before anything has been scored. So the state file exists
+        # before the ledger's first line, and every line the ledger holds has, on disk, the experiment it
+        # belongs to: a run stopped anywhere, the baseline trial included, resumes instead of starting over.
+        # The write that ends the search is the same write, one iteration later, which is why there is one
+        # call and not two.
+        while True:
+            write_round_state(ticker, state_file, trials, active_state, timeframes)
+            if state_file["search_converged"]:
+                break
+            if not trials:
+                start = start_state(profile, active_columns, active_barriers, best, timeframes)
+                index = score(start, None, None, None, None, config.REBUILD_FITS, None)
+                print(f"{ticker} start state {objective_line(trials[index - 1])}", flush=True)
+            # trial 1 is the state the search started from — the champion until a family keeps a move. The
+            # beam in flight is a local, read back from the file at the top of every round, because the
+            # round is the unit of resume and a replay has to start where the interrupted round started
+            beam = state_file["beam"] or [state_file["champion_trial"] or 1]
             round_number = state_file["round_count"] + 1
             # what this round accepted, kept aside until it ends: a round replayed after an interrupt walks
             # its families again, and the file's path must hold each expansion once, not once per attempt
@@ -365,7 +377,6 @@ def main() -> int:
             state_file["champion_trial"] = beam[0]
             state_file["round_count"] = round_number
             state_file["search_converged"] = not round_accepted
-            write_round_state(ticker, state_file, trials, active_state, timeframes)
 
         champion_row = trials[state_file["champion_trial"] - 1]
         print(f"{ticker} {path.name}: converged after {state_file['round_count']} rounds and {len(trials)} trials, "

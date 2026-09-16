@@ -252,8 +252,9 @@ def strategy_evaluation_json(ticker):
 
 
 def coordinate_search_json(ticker):
-    """Where the search stands at the end of a round: what it was conditioned on, its beam, its champion,
-    the path it took and the states it proposes. The trials themselves are the ledger beside it."""
+    """Where the search stood when a round began: what it was conditioned on, its beam, its champion, the
+    path it took and the states it proposes. Written at the top of a round, so it is on disk before the
+    ledger beside it — the trials themselves — holds its first line."""
     return artifact_dir(ticker) / f"{ticker}_coordinate_search.json"
 
 
