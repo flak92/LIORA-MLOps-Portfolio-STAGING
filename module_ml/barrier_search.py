@@ -13,19 +13,10 @@ from __future__ import annotations
 
 from . import config
 
-FAMILY_TRADE = "trade"
-FAMILY_LABEL = "label"
-FAMILIES = (FAMILY_TRADE, FAMILY_LABEL)
-# which coordinates each family moves, and what a child of it must build again
-FAMILY_COORDINATES = {FAMILY_TRADE: ("take_profit_atr_multiplier", "stop_loss_atr_multiplier"),
-                      FAMILY_LABEL: ("atr_barrier_multiplier", "label_horizon")}
-FAMILY_REBUILD = {FAMILY_TRADE: config.REBUILD_BACKTEST, FAMILY_LABEL: config.REBUILD_LABELS}
-
-
-def to_barrier(row: dict) -> dict:
-    """A trial's barrier geometry as a state carries it: a JSON round trip leaves a whole number where a
-    multiplier wants a float, and the key compares values, not their spelling."""
-    return {name: cast(row[name]) for name, cast in config.BARRIER_COORDINATE_CASTS.items()}
+# which coordinates each family of `config.ROUND_SCHEDULE` moves, and what a child of it must build again
+FAMILY_COORDINATES = {"trade": ("take_profit_atr_multiplier", "stop_loss_atr_multiplier"),
+                      "label": ("atr_barrier_multiplier", "label_horizon")}
+FAMILY_REBUILD = {"trade": config.REBUILD_BACKTEST, "label": config.REBUILD_LABELS}
 
 
 def grid(profile: dict, name: str) -> list:

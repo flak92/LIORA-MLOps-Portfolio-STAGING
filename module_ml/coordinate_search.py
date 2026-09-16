@@ -2,11 +2,12 @@
 validation objective: a move is kept only where it is better than the state it came from on **every**
 validation fold — strictly for a move that grows the state, at no worse for one that shrinks it.
 
-A **round** applies each loop the profile names, once, in the frozen order of COORDINATE_SEARCH_ROUND_LOOPS.
-A loop's **pass** expands the beam one **family** at a time, each family seeded by the beam the family
-before it left — which is what makes one forward move and one backward move a single pass. A round that
-keeps nothing is convergence, and the state it stopped at is coordinate-wise locally optimal, never a
-global optimum.
+A **round** is `config.ROUND_SCHEDULE` read in order: a table of (loop, family) pairs, one line per
+expansion the round makes. Each **family** expands the beam once and is seeded by the beam the family
+before it left, so a forward move and a backward move over one coordinate are two lines of one round and
+not two rounds. A profile searches the loops it names and the round skips the rest. A round that keeps
+nothing is convergence, and the state it stopped at is coordinate-wise locally optimal, never a global
+optimum.
 
 Every scored state, recorded in `<TICKER>_coordinate_search.json`, is the stage's own state, written after
 each, so an interrupted run resumes at the top of its round without a refit and a finished run is read,
@@ -14,6 +15,7 @@ not rewritten. Promotes nothing: the proposals are read by a hand and copied by 
 
 from __future__ import annotations
 
+import json
 import math
 
 import numpy as np
@@ -27,22 +29,20 @@ LOOP_MODULES = {config.COORDINATE_SEARCH_LOOP_BARRIER: barrier_search,
                 config.COORDINATE_SEARCH_LOOP_HPO: hpo}
 
 
-def state_key(state: dict, timeframes: tuple[str, ...]) -> tuple:
-    """A state as the scored-trial index keys it: the set timeframe-major, the barrier geometry in the
-    order the register names it, and the hyper-parameter point in the space's own — independent of how a
-    dict was built or read back. Every grid value is a whole number or a multiple of a quarter, so the
-    equality is exact and asks for no tolerance."""
-    return (feature_set_search.set_key(state["columns_by_timeframe"], timeframes),
-            tuple((name, state[name]) for name in config.BARRIER_COORDINATE_NAMES),
-            tuple((name, state["best_params"][name]) for name in config.HYPERPARAMETER_SEARCH_SPACE))
-
-
-def to_state(row: dict, timeframes: tuple[str, ...]) -> dict:
-    """The state a trial recorded, as a generator takes one: a JSON round trip leaves lists where the key
-    wants tuples, so it is the to_tuples of a whole state."""
-    return {"columns_by_timeframe": feature_set_search.to_tuples(row["columns_by_timeframe"], timeframes),
+def theta(row: dict) -> dict:
+    """The state a trial holds, by itself: the columns of the set, the barrier geometry and the
+    hyper-parameter point. A trial's row is this and the numbers it earned."""
+    return {"columns_by_timeframe": row["columns_by_timeframe"],
             "best_params": row["best_params"],
-            **barrier_search.to_barrier(row)}
+            **{name: row[name] for name in config.BARRIER_COORDINATE_NAMES}}
+
+
+def state_key(state: dict) -> str:
+    """A state as the scored-trial index keys it — its own canonical text. A state is written the way the
+    artifacts carry it, so a state read back off disk keys the same as the one that wrote it, with no shape
+    to repair first. Every value is a string, a whole number or a multiple of a quarter, so the equality is
+    exact and asks for no tolerance."""
+    return json.dumps(state, sort_keys=True, separators=(",", ":"))
 
 
 def xy_for_state(asset: dict, state: dict) -> dict:
@@ -176,14 +176,14 @@ def proposals_block(trials: list[dict], active_state: dict, champion_trial: int,
     """The states a hand may promote: the champion the search accepted first, then the trials no validation
     fold scores below the state the search started from, by the ranking key. A state worse on any fold is
     never proposed."""
-    active_key = state_key(active_state, timeframes)
+    active_key = state_key(active_state)
     qualifiers = [(index, row) for index, row in enumerate(trials, start=1)
-                  if state_key(row, timeframes) != active_key
+                  if state_key(theta(row)) != active_key
                   and all(child >= own for child, own in zip(fold_objective(row), fold_objective(trials[0])))]
     # the champion first — the state the search itself accepted, move by move — then the rest by the key
     ranked = sorted(qualifiers, key=lambda item: (item[0] != champion_trial,
                                                   *ranking_key(trials, item[0], timeframes)))
-    active = feature_set_search.to_tuples(active_state["columns_by_timeframe"], timeframes)
+    active = active_state["columns_by_timeframe"]
     return [{
         "proposal": rank,
         "trial": index,
@@ -234,7 +234,7 @@ def start_state(profile: dict, active_columns_by_timeframe: dict, active_barrier
     """The state a search starts from: the columns the profile names, else the asset's own set, with the
     asset's own barrier geometry and the parameters it holds fixed."""
     columns = profile["start_columns_by_timeframe"] or active_columns_by_timeframe
-    return {"columns_by_timeframe": feature_set_search.to_tuples(columns, timeframes),
+    return {"columns_by_timeframe": {timeframe: list(columns[timeframe]) for timeframe in timeframes},
             "best_params": best_params,
             **{name: active_barriers[name] for name in config.BARRIER_COORDINATE_NAMES}}
 
@@ -285,14 +285,11 @@ def main() -> int:
         state_file = dataset.load_json(path) if path.exists() else None
         if state_file is None or state_file["inputs"] != inputs:
             state_file = {"inputs": inputs, "trials": [], "beam": [], "champion_trial": None,
-                          "round_count": 0, "pass_count_by_loop": {}, "trial_count_by_loop": {},
+                          "round_count": 0, "trial_count_by_loop": {},
                           "search_converged": False, "path": []}
         trials = state_file["trials"]
-        trial_index_by_state = {}
-        for index, row in enumerate(trials, start=1):
-            row["columns_by_timeframe"] = feature_set_search.to_tuples(row["columns_by_timeframe"], timeframes)
-            row.update(barrier_search.to_barrier(row))
-            trial_index_by_state[state_key(row, timeframes)] = index
+        trial_index_by_state = {state_key(theta(row)): index
+                                for index, row in enumerate(trials, start=1)}
         if state_file["search_converged"]:
             print(f"{ticker}: the search converged after {state_file['round_count']} rounds and {len(trials)} "
                   f"trials — {len(state_file['proposals'])} proposals in {path.name}", flush=True)
@@ -303,12 +300,11 @@ def main() -> int:
             """The trial index of a state: its earlier trial's when it was scored before, else a new trial
             scored now. The counters advance at the end of a round, so a trial of the round in flight
             carries the number that round will take."""
-            key = state_key(child, timeframes)
+            key = state_key(child)
             if key in trial_index_by_state:
                 return trial_index_by_state[key]
             row = trial_result(asset, child, state_material(asset, child, rebuild, inherited))
             trials.append({**row, "loop": loop, "family": family, "move": move,
-                           "pass": state_file["round_count"] + 1 if move else 0,
                            "round": state_file["round_count"] + 1 if move else 0,
                            "parent_trial": parent})
             trial_index_by_state[key] = len(trials)
@@ -332,36 +328,37 @@ def main() -> int:
             # what this round accepted, kept aside until it ends: a round replayed after an interrupt walks
             # its families again, and the file's path must hold each expansion once, not once per attempt
             round_accepted, round_path = False, []
-            for loop in profile["loops"]:
-                for family in LOOP_MODULES[loop].FAMILIES:
-                    children = []
-                    for parent in beam:
-                        parent_row = trials[parent - 1]
-                        parent_state = to_state(parent_row, timeframes)
-                        # the champion a study inside this loop has to beat, fold by fold
-                        asset["champion_by_fold"] = {fold_id: parent_row["validation"][f"fold_{fold_id}"]
-                                                     for fold_id in config.VALIDATION_FOLD_IDS}
-                        inherited = None      # the parent's own material, built only if a child inherits it
-                        for move, label, child, rebuild in LOOP_MODULES[loop].moves(
-                                parent_state, asset, profile, family):
-                            if rebuild == config.REBUILD_BACKTEST and inherited is None:
-                                inherited = state_material(asset, parent_state, config.REBUILD_FITS, None)
-                            index = score(child, loop, family, move, parent, rebuild, inherited)
-                            print(progress_line(ticker, state_file, loop, family, label,
-                                                parent_row, trials[index - 1]), flush=True)
-                            if is_gate_cleared(trials[index - 1], parent_row, move):
-                                children.append(index)
-                    if children:
-                        beam = top_beam(children, trials, timeframes)
-                        round_accepted = True
-                        round_path.append(path_entry(state_file, loop, family, beam))
+            # a round is its schedule, read in order; a profile searches the loops it names and skips the rest
+            for loop, family in config.ROUND_SCHEDULE:
+                if loop not in profile["loops"]:
+                    continue
+                children = []
+                for parent in beam:
+                    parent_row = trials[parent - 1]
+                    parent_state = theta(parent_row)
+                    # the champion a study inside this loop has to beat, fold by fold
+                    asset["champion_by_fold"] = {fold_id: parent_row["validation"][f"fold_{fold_id}"]
+                                                 for fold_id in config.VALIDATION_FOLD_IDS}
+                    inherited = None      # the parent's own material, built only if a child inherits it
+                    for move, label, child, rebuild in LOOP_MODULES[loop].moves(
+                            parent_state, asset, profile, family):
+                        if rebuild == config.REBUILD_BACKTEST and inherited is None:
+                            inherited = state_material(asset, parent_state, config.REBUILD_FITS, None)
+                        index = score(child, loop, family, move, parent, rebuild, inherited)
+                        print(progress_line(ticker, state_file, loop, family, label,
+                                            parent_row, trials[index - 1]), flush=True)
+                        if is_gate_cleared(trials[index - 1], parent_row, move):
+                            children.append(index)
+                if children:
+                    beam = top_beam(children, trials, timeframes)
+                    round_accepted = True
+                    round_path.append(path_entry(state_file, loop, family, beam))
             # the counters, the beam and the champion move together at the round's end: a trial written in
             # flight carries the round it belongs to, and a run interrupted inside a round resumes at the
             # top of that round, every state it already scored a cache hit
             state_file["path"].extend(round_path)
             state_file["beam"] = list(beam)
             state_file["champion_trial"] = beam[0]
-            state_file["pass_count_by_loop"] = {loop: round_number for loop in profile["loops"]}
             state_file["round_count"] = round_number
             state_file["search_converged"] = not round_accepted
             write_state(ticker, state_file, active_state, timeframes)

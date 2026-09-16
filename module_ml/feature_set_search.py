@@ -8,9 +8,6 @@ from __future__ import annotations
 
 from . import config
 
-# the two families of a pass, in the order it expands them
-FAMILIES = (config.COORDINATE_SEARCH_MOVE_FORWARD, config.COORDINATE_SEARCH_MOVE_BACKWARD)
-
 
 # the helpers take the hierarchy from the asset's contract (xy["timeframes"]) — the ML layer holds no register of its own
 def columns_added(columns_by_timeframe: dict, active: dict, timeframes: tuple[str, ...]) -> dict:
@@ -30,27 +27,19 @@ def with_column(columns_by_timeframe: dict, timeframe: str, name: str, catalogue
     """The set with one definition added on one timeframe, kept in catalogue order — the order the contract lists."""
     kept = set(columns_by_timeframe[timeframe]) | {name}
     return {**columns_by_timeframe,
-            timeframe: tuple(column for column in catalogue_columns if column in kept)}
+            timeframe: [column for column in catalogue_columns if column in kept]}
 
 
 def without_column(columns_by_timeframe: dict, timeframe: str, name: str) -> dict:
     return {**columns_by_timeframe,
-            timeframe: tuple(column for column in columns_by_timeframe[timeframe] if column != name)}
-
-
-def to_tuples(columns_by_timeframe: dict, timeframes: tuple[str, ...]) -> dict:
-    return {timeframe: tuple(columns_by_timeframe[timeframe]) for timeframe in timeframes}
-
-
-def set_key(columns_by_timeframe: dict, timeframes: tuple[str, ...]) -> tuple:
-    """A set as the scored-trial index keys it: timeframe-major, independent of how a dict was built or read back."""
-    return tuple((timeframe, tuple(columns_by_timeframe[timeframe])) for timeframe in timeframes)
+            timeframe: [column for column in columns_by_timeframe[timeframe] if column != name]}
 
 
 def moves(state: dict, asset: dict, profile: dict, family: str) -> tuple:
     """Every legal move of one family from one state: the direction the gate compares in, the move's own
     name for the progress line, the whole state it leads to, and what a child of it must build again — the
-    model's matrix and its three fits, X being all that a column changes.
+    model's matrix and its three fits, X being all that a column changes. The families are the two
+    `config.ROUND_SCHEDULE` names for this loop.
 
     The catalogue fixes the order — the profile says which columns are admitted, never in what order they
     are tried — and the last column of a set is never taken out, so a state always has one."""

@@ -146,16 +146,17 @@ the earlier trial. What the gate guarantees is that drawdown **relative to
 growth** never worsens on any of the three years; it does not guarantee a smaller
 drawdown in absolute terms.
 
-A **round** applies each loop the profile names, once, in the frozen order
-`barrier`, `feature_set`, `hpo`. A loop's **pass** expands the beam one **family**
-at a time, each family seeded by the beam the family before it left: the
-`feature_set` loop's families are one forward move — every state with one more
-admitted column, in timeframe order and catalogue order — and then one backward
-move — every state with one column fewer, never the last of the set; the
-`barrier` loop's are the trade's own exit first and the label's geometry second,
-because a move of the trade's exit changes neither a fit nor a prediction and can
-be scored on the material its parent is still holding, while a move of the
-label's geometry writes Y again. The beam keeps the best
+A **round** is `ROUND_SCHEDULE` read in order — a table of (loop, family) pairs,
+one line per expansion the round makes, and the search's only notion of what
+happens when. Each **family** expands the beam once and is seeded by the beam the
+line before it left: the `barrier` loop's trade geometry first and its label
+geometry second, because a move of the trade's exit changes neither a fit nor a
+prediction and can be scored on the material its parent is still holding, while a
+move of the label's geometry writes Y again; then the `feature_set` loop's
+forward move — every state with one more admitted column, in timeframe order and
+catalogue order — and its backward move — every state with one column fewer,
+never the last of the set; then the `hpo` loop's one study. A profile searches
+the loops it names and the round skips the rest. The beam keeps the best
 `COORDINATE_SEARCH_BEAM_WIDTH` **distinct** qualifying children of each family;
 two parents can reach one state, and it is one member. A round that keeps nothing
 is convergence — `search_converged` — and the state it stops at is

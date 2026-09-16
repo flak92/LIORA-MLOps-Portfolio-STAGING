@@ -28,8 +28,6 @@ import optuna
 
 from . import config, dataset, model, strategy, train, validation
 
-FAMILIES = ("hpo",)
-
 
 def log_trials(ticker: str, trials: list[dict]) -> None:
     """Every trial of the search: one mlflow run per trial, named `hpo_<n>` — its place in that search, counting from

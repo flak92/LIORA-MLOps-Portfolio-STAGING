@@ -20,9 +20,11 @@ def main() -> int:
         proposals = {row["proposal"]: row
                      for row in dataset.load_json(config.coordinate_search_json(ticker))["proposals"]}
         proposal = proposals[args.proposal]
-        columns_by_timeframe = feature_set_search.to_tuples(proposal["columns_by_timeframe"], timeframes)
+        columns_by_timeframe = {timeframe: list(proposal["columns_by_timeframe"][timeframe])
+                                for timeframe in timeframes}
         barriers = {name: proposal[name] for name in config.BARRIER_COORDINATE_NAMES}
-        active_columns = dataset.load_feature_columns(ticker, cat)
+        active_columns = {timeframe: list(columns) for timeframe, columns
+                          in dataset.load_feature_columns(ticker, cat).items()}
         active = dataset.load_barriers(ticker)
         active_barriers = {name: active[name] for name in config.BARRIER_COORDINATE_NAMES}
         if columns_by_timeframe == active_columns and barriers == active_barriers:

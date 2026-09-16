@@ -152,8 +152,15 @@ COORDINATE_SEARCH_MOVE_BACKWARD = "backward"
 COORDINATE_SEARCH_LOOP_BARRIER = "barrier"
 COORDINATE_SEARCH_LOOP_FEATURE_SET = "feature_set"
 COORDINATE_SEARCH_LOOP_HPO = "hpo"
-COORDINATE_SEARCH_ROUND_LOOPS = (COORDINATE_SEARCH_LOOP_BARRIER, COORDINATE_SEARCH_LOOP_FEATURE_SET,
-                                 COORDINATE_SEARCH_LOOP_HPO)
+# a round, written out: every expansion it makes, in the order it makes them. The search reads this table and
+# has no schedule of its own — a coordinate is added by a line here, a module in MOVE_GENERATORS and a grid in
+# the profile, and a profile searches the loops it names and skips the rest
+ROUND_SCHEDULE = ((COORDINATE_SEARCH_LOOP_BARRIER, "trade"),
+                  (COORDINATE_SEARCH_LOOP_BARRIER, "label"),
+                  (COORDINATE_SEARCH_LOOP_FEATURE_SET, COORDINATE_SEARCH_MOVE_FORWARD),
+                  (COORDINATE_SEARCH_LOOP_FEATURE_SET, COORDINATE_SEARCH_MOVE_BACKWARD),
+                  (COORDINATE_SEARCH_LOOP_HPO, "study"))
+COORDINATE_SEARCH_ROUND_LOOPS = tuple(dict.fromkeys(loop for loop, _ in ROUND_SCHEDULE))
 # the quantity every selection reads — the gate per fold, the ranking, the threshold's own choice and,
 # once the search tunes them, the hyper-parameters: one token, so one experiment moves all of them
 SELECTION_OBJECTIVE_RELATIVE_LOGLOSS_SKILL = "relative_logloss_skill"
