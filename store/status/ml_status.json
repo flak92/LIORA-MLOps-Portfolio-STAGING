@@ -249,6 +249,7 @@
     "warmup_excluded_decision_count": 3200
    },
    "strategy": {
+    "cleared_point_count": 38,
     "entry_edge_threshold": 0.34,
     "entry_edge_threshold_constraint_met": true,
     "equity_curve": {
@@ -361,6 +362,8 @@
      "sharpe": -1.809,
      "trade_count": 100
     },
+    "max_cagr_over_cleared": 0.05229069267090858,
+    "median_cagr_over_cleared": -0.21706628602582428,
     "selection_score_cagr_validation_path": 0.052291,
     "validation": {
      "fold_2": {
@@ -560,7 +563,7 @@
   }
  ],
  "final_holdout_fold_id": 5,
- "generated_at_utc": "2026-09-16 16:49:08",
+ "generated_at_utc": "2026-09-16 19:26:36",
  "minimum_agreeing_trend_timeframes": 2,
  "research_window": {
   "end_utc": "2026-08-26",

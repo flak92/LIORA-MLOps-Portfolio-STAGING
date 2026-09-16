@@ -112,6 +112,7 @@ def trial_result(asset: dict, state: dict, material: dict) -> dict:
         "validation_path": selection["validation_path"],
         "entry_edge_threshold": selection["entry_edge_threshold"],
         "entry_edge_threshold_constraint_met": selection["entry_edge_threshold_constraint_met"],
+        **{name: selection[name] for name in strategy.SELECTION_EXPOSURE_KEYS},
         strategy.SELECTION_SCORE_KEY: selection[strategy.SELECTION_SCORE_KEY],
     }
 

@@ -109,10 +109,23 @@ def build_objective(xy: dict[str, np.ndarray], bars_1m: dict[str, np.ndarray],
 
 
 def trial_metrics(trial: optuna.trial.FrozenTrial) -> dict[str, float]:
-    """A trial's value as far as it got: its own when it completed, its last reported fold when a gate
-    stopped it — so every point the search drew reaches the ledger, which a null never would."""
-    value = trial.value if trial.value is not None else trial.intermediate_values[max(trial.intermediate_values)]
-    return {TRIAL_METRIC_KEY: value}
+    """What a trial leaves in the ledger — and it is not the same quantity for a trial that finished and one
+    a gate stopped. A completed trial has the chained path's growth rate at the threshold the selection rule
+    chose. A pruned one has only `fold_pruning_bound` at the fold it died on: an **upper bound** on a number
+    it never reached, over folds it never all ran. Logging both under one key made two populations read as
+    one, and the ledger's own mean was then a mean of bounds and values together."""
+    if trial.value is not None:
+        return {TRIAL_METRIC_KEY: trial.value}
+    return {"fold_cagr_bound_at_pruning": trial.intermediate_values[max(trial.intermediate_values)]}
+
+
+def trial_params(trial: optuna.trial.FrozenTrial) -> dict:
+    """The point the trial drew, and for a pruned one the fold it was stopped at — a bound says nothing
+    without the fold it bounds."""
+    if trial.value is not None:
+        return trial.params
+    return {**trial.params,
+            "pruned_at_fold": config.VALIDATION_FOLD_IDS[max(trial.intermediate_values)]}
 
 
 def search_hyperparameters(xy: dict, bars_1m: dict[str, np.ndarray],
@@ -139,13 +152,14 @@ def moves(state: dict, asset: dict, profile: dict, family: str) -> tuple:
     began. Nothing when the incumbent wins — the state is its own candidate and the loop keeps nothing.
 
     The study's points are fits the search pays for and the ledger never sees, because only the one the study
-    chose becomes a state: the count goes back under `asset["trials_drawn"]`, every trial the study ran,
-    pruned and completed alike and the point it started from among them, so a reader of the search can weigh
-    this loop's answer against how many points it drew to get there."""
+    chose becomes a state: the count goes back under `asset["trials_drawn"]` — every point the **sampler**
+    drew, pruned and completed alike. The point the study was handed is not one of them: it is the state
+    already in the ledger, and counting it would inflate the loop's exposure by one per study with a
+    candidate that was never a candidate."""
     del profile, family
     study = search_hyperparameters(asset["xy_for"](state), asset["bars_1m"], state["best_params"],
                                   asset.get("champion_by_fold"))
-    asset["trials_drawn"] = len(study.trials)
+    asset["trials_drawn"] = len(study.trials) - 1        # the enqueued start is the state, not a draw
     completed = study.get_trials(deepcopy=False, states=(optuna.trial.TrialState.COMPLETE,))
     if not completed:
         return ()
@@ -180,7 +194,7 @@ def main() -> int:
         }
         out = config.parameters_json(ticker)
         dataset.write_json(out, payload)
-        log_trials(ticker, [{"params": trial.params, "metrics": trial_metrics(trial)}
+        log_trials(ticker, [{"params": trial_params(trial), "metrics": trial_metrics(trial)}
                             for trial in study.trials])
         print(f"{ticker} {out.name}: {OBJECTIVE_KEY} {study.best_value:.6f} "
               f"(trial {study.best_trial.number})", flush=True)

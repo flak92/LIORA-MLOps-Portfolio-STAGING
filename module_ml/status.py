@@ -79,6 +79,9 @@ def strategy_block(strategy: dict) -> dict:
         "entry_edge_threshold": strategy["entry_edge_threshold"],
         "entry_edge_threshold_constraint_met":
             strategy["entry_edge_threshold_constraint_met"],
+        # what the chosen threshold was chosen out of, carried verbatim: the page states the spread beside
+        # the score rather than computing it, and a reader who wants a correction has the count to make it
+        **{name: strategy[name] for name in strategy_module.SELECTION_EXPOSURE_KEYS},
         strategy_module.SELECTION_SCORE_KEY: config.rounded(strategy[strategy_module.SELECTION_SCORE_KEY], 6),
         "execution_cost_rate_per_trade_side": strategy["execution_cost_rate_per_trade_side"],
         "validation": {k: _pnl_block(v) for k, v in sorted(strategy["validation"].items())},

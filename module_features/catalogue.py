@@ -113,7 +113,14 @@ def write_catalogue(ticker: str, decision_ts: np.ndarray, cols: dict[str, np.nda
             order_by="decision_ts",
         ))
     contract = config.catalogue_json(ticker)
-    dataset.write_json(contract, config.catalogue_contract(ticker))
+    payload = config.catalogue_contract(ticker)
+    # the contract is what the ML layer reads, and every column in it was evaluated under this warm-up: a
+    # contract that does not cover its own widest definition would hand ML rows the definition had not settled
+    # into. Derived today, so this cannot fire — it is what makes writing the number back by hand fail loudly
+    assert max(config.definition_warmup_bars(definition) for definition in config.FEATURE_CATALOGUE) \
+        <= payload["warmup_top_timeframe_bars"], \
+        "the catalogue's warm-up does not cover its widest definition"
+    dataset.write_json(contract, payload)
     written.append(contract)
     return written
 

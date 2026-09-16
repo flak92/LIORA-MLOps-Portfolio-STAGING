@@ -98,10 +98,6 @@ def timeframe_slot(token: str) -> str:
 
 TIMEFRAME_DURATION_MS = {timeframe: timeframe_duration_ms(timeframe) for timeframe in HIERARCHY_TIMEFRAMES}
 TIMEFRAME_SLOT = {timeframe: timeframe_slot(timeframe) for timeframe in HIERARCHY_TIMEFRAMES}
-# the experiment's warm-up, in bars of the top timeframe: a term that needs more stops the evaluator
-WARMUP_TOP_TIMEFRAME_BARS = 200
-WARMUP_END_MS = RESEARCH_START_MS + WARMUP_TOP_TIMEFRAME_BARS * TIMEFRAME_DURATION_MS[HIERARCHY_TIMEFRAMES[-1]]
-
 # ---- the terms: a series of the bars, or an indicator of the register with its one integer parameter glued to the
 # token in a name (ema20, rsi14); the indicators' invariants are their register records in indicators.py, and the
 # operators and normalisers that compose them are the registers beside their kernels in catalogue.py
@@ -168,6 +164,15 @@ def term_warmup_bars(term: tuple) -> int:
 
 def definition_warmup_bars(definition: dict) -> int:
     return max(term_warmup_bars(term) for term in definition["terms"])
+
+
+# The experiment's warm-up, in bars of the top timeframe — read off the catalogue, not written beside it.
+# Written down it was a number that had to be remembered: a definition with a longer memory than the one it
+# was set for is evaluated before its own value has settled, and nothing says so, because the rows are there
+# and finite. Derived, the catalogue moves it. Today the widest are ema50 (4 x 50) and sma200 (1 x 200), and
+# the derived value is 200 — the number that was written here.
+WARMUP_TOP_TIMEFRAME_BARS = max(definition_warmup_bars(definition) for definition in FEATURE_CATALOGUE)
+WARMUP_END_MS = RESEARCH_START_MS + WARMUP_TOP_TIMEFRAME_BARS * TIMEFRAME_DURATION_MS[HIERARCHY_TIMEFRAMES[-1]]
 
 
 def definition_effective_history_hours(definition: dict, timeframe: str) -> float:

@@ -283,6 +283,8 @@ def equity_curve(equity_1m: np.ndarray) -> dict:
 
 
 SELECTION_SCORE_KEY = "selection_score_cagr_validation_path"
+# what the chosen threshold was chosen out of — reported beside the score, never used to change it
+SELECTION_EXPOSURE_KEYS = ("cleared_point_count", "median_cagr_over_cleared", "max_cagr_over_cleared")
 
 
 def selection_score(validation_by_fold: dict[int, dict]) -> float:
@@ -299,8 +301,8 @@ def selection_score(validation_by_fold: dict[int, dict]) -> float:
 def entry_edge_threshold_selection(simulation_inputs: dict) -> dict:
     """The entry edge threshold chosen on the validation folds — the grid point maximising the chained
     path's growth rate among those clearing the trade floor, ties to the smaller threshold, the grid floor when none
-    clears it — with the fold results at that point and the path they chain into. The one selection the
-    stage and the coordinate search both run."""
+    clears it — with the fold results at that point, the path they chain into, and how many points it was
+    chosen out of. The one selection the stage and the coordinate search both run."""
     validation_rows = {fold_id: signals_for_fold(simulation_inputs, fold_id)
                        for fold_id in config.VALIDATION_FOLD_IDS}
     validation_bounds = {fold_id: validation.fold_bounds(fold_id)
@@ -309,6 +311,7 @@ def entry_edge_threshold_selection(simulation_inputs: dict) -> dict:
     entry_edge_threshold, chosen_score = None, -np.inf
     validation_by_fold, entry_edge_threshold_constraint_met = None, False
     results_at_grid_floor = None                     # kept for the fallback below
+    cleared_scores = []                              # what the chosen point was chosen out of
     for threshold in config.ENTRY_EDGE_THRESHOLD_GRID:
         results_by_fold = {fold_id: backtest(simulation_inputs, validation_rows[fold_id], threshold,
                                              *validation_bounds[fold_id])
@@ -320,6 +323,7 @@ def entry_edge_threshold_selection(simulation_inputs: dict) -> dict:
             continue
         entry_edge_threshold_constraint_met = True
         score = selection_score(results_by_fold)
+        cleared_scores.append(score)
         if score > chosen_score:                     # strict: ties keep the smaller threshold
             entry_edge_threshold, chosen_score = threshold, score
             validation_by_fold = results_by_fold
@@ -331,6 +335,14 @@ def entry_edge_threshold_selection(simulation_inputs: dict) -> dict:
         "entry_edge_threshold": entry_edge_threshold,
         "entry_edge_threshold_constraint_met": entry_edge_threshold_constraint_met,
         SELECTION_SCORE_KEY: chosen_score,
+        # the population the chosen point was chosen out of. A selection is a maximum over a grid, and a
+        # maximum reported without the grid it came from is a number with no spread beside it: the same
+        # score means one thing when it is the only point that qualified and another when it is the best of
+        # eleven. Three plain statistics, no correction applied and none implied — the correction is the
+        # reader's to make, and it cannot be made at all without these. None when nothing qualified.
+        "cleared_point_count": len(cleared_scores) or None,
+        "median_cagr_over_cleared": float(np.median(cleared_scores)) if cleared_scores else None,
+        "max_cagr_over_cleared": max(cleared_scores) if cleared_scores else None,
         "validation_by_fold": validation_by_fold,
         "validation_path": validation_path_block(validation_by_fold),
     }
@@ -353,6 +365,7 @@ def main() -> int:
         payload = {
             "entry_edge_threshold": entry_edge_threshold,
             "entry_edge_threshold_constraint_met": selection["entry_edge_threshold_constraint_met"],
+            **{name: selection[name] for name in SELECTION_EXPOSURE_KEYS},
             SELECTION_SCORE_KEY: selection[SELECTION_SCORE_KEY],
             "execution_cost_rate_per_trade_side": config.EXECUTION_COST_RATE_PER_TRADE_SIDE,
             "validation": {f"fold_{fold_id}": pnl_block(r)

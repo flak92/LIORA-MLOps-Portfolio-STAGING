@@ -145,7 +145,8 @@ function renderClassification(mlStatus) {
 
 function renderStrategy(mlStatus) {
   renderTable("cs-strategy",
-    ["asset", "entry edge threshold", "constraint met", "selection score", "path CAGR", "path Calmar",
+    ["asset", "entry edge threshold", "constraint met", "grid points cleared",
+     "median CAGR over cleared", "selection score", "path CAGR", "path Calmar",
      "path maxDD", "path PF", "holdout CAGR", "degradation", "holdout Sharpe",
      "maxDD", "trades", "hit", "avg trade", "exposure", "final equity",
      "exits: upper/lower/vertical/ambiguous"],
@@ -160,6 +161,8 @@ function renderStrategy(mlStatus) {
         buildTickerLink(asset.ticker, selectAsset),
         asset.strategy.entry_edge_threshold.toFixed(2),
         asset.strategy.entry_edge_threshold_constraint_met ? "yes" : "fallback",
+        asset.strategy.cleared_point_count === null ? "-" : String(asset.strategy.cleared_point_count),
+        formatPercent(asset.strategy.median_cagr_over_cleared, 2),
         formatPercent(selectionScore, 2),
         formatPercent(validationPath.cagr, 2),
         formatNumber(validationPath.calmar, 2),

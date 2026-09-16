@@ -250,8 +250,10 @@ run with an uninterrupted one byte for byte.
 **What a loop drew, against what it kept.** `trial_count_by_loop` is each loop's
 whole exposure, not the part that survived: for a loop that enumerates a grid it
 is the ledger's lines, and for the `hpo` loop it is `trials_drawn_by_loop` —
-every trial of every study it ran, pruned and completed alike and the point each
-study started from among them. The two are added where the snapshot is composed,
+every point the sampler drew in every study it ran, pruned and completed alike.
+The point each study was handed is not among them: it is the state already in the
+ledger, and counting it would add one candidate per study that was never a
+candidate. The two are added where the snapshot is composed,
 so the page and the terminal read one number and do no arithmetic. Without it the
 `hpo` loop is invisible whenever it keeps nothing: it offers at most one candidate
 per beam member per round and none at all when the incumbent wins, so a search
@@ -290,6 +292,18 @@ differ at the edges; the difference is bounded by the horizon and the purge
 width, the comparison is still made on the same calendar window and the same
 capital, and that is a property of the coordinate rather than an accident of the
 code.
+
+**The warm-up is read off the catalogue, not written beside it.** Every feature
+column is evaluated only after `WARMUP_TOP_TIMEFRAME_BARS` bars of the top
+timeframe, and that number is `max(definition_warmup_bars(d))` over the catalogue
+rather than a constant a hand keeps in step. Written down it was a number to
+remember: a definition with a longer memory than the one it was set for is
+evaluated before its own value has settled, and nothing says so, because the rows
+are there and finite. Today the widest are `ema50` (four times fifty) and `sma200`
+(one times two hundred), so the derived value is 200 — the number that had been
+written. `catalogue.py` asserts that the contract it writes covers its own widest
+definition, which cannot fire while the value is derived and fires loudly the day
+someone writes it back by hand.
 
 ## 5. Labels
 
@@ -436,9 +450,28 @@ is a random search under the sampler's name and reports as a TPE one. The startu
 count is `HYPERPARAMETER_SEARCH_STARTUP_TRIAL_COUNT = 10`, written in
 `config.py` rather than inherited from the library: a number that decides how the
 experiment searches is the experiment's, and a default that moves with a version
-bump is not a frozen method. Trials 11–20 are the modelled ones. Both counts were
+bump is not a frozen method. The modelled trials are the ones past the startup count. Both counts were
 chosen when the method was frozen; before that the file carried three trials and
 said so.
+
+**The sampler's remaining internals are Optuna's, and are pinned as such.** The
+quantile that splits good from bad, the number of candidates the acquisition
+draws, the prior and its weight, the clipping, the endpoints, `multivariate`,
+`group`, `constant_liar` — none of them is written here, and one of them is a
+function rather than a number, so copying them into `config.py` would fork the
+library's internals into this repo and let the fork drift. They are pinned
+instead: `==` in `requirements.txt`, a hash in `requirements.lock` and the base
+image by digest. A version bump therefore changes the method and re-bases the
+hash in § 12 — it cannot be a silent drift, which is the property that was
+wanted.
+
+**A pruned trial and a completed one do not share a ledger key.** A completed
+trial carries `cagr_validation_path`, the chained path's growth rate at the
+threshold the rule chose. A pruned one carries `fold_cagr_bound_at_pruning` and
+the param `pruned_at_fold`: `fold_pruning_bound()` at the fold a gate stopped it
+on, which is an **upper bound** on a quantity it never reached, over folds it
+never all ran. Under one key the two read as one population and the ledger's own
+mean was a mean of bounds and values together.
 
 **The stage draws no point to start from.** It is a function of X, Y and the
 frozen constants, so `<TICKER>_parameters.json` is a function of the raw store
@@ -604,6 +637,18 @@ from `E₀` — a 15-minute sampling would report a 1.00 → 0.91 → 0.99 excur
 −1 % instead of −9 %. `exposure` is
 `Σ(exit − entry) / fold length`. The reported result is
 **execution-cost-adjusted PnL, excluding funding**.
+
+**What the chosen threshold was chosen out of.** The selection is a maximum over
+the threshold grid, and a maximum reported alone is a number with no spread beside
+it: the same score means one thing as the only point that qualified and another as
+the best of eleven. `cleared_point_count`, `median_cagr_over_cleared` and
+`max_cagr_over_cleared` ride beside it in `<TICKER>_strategy_evaluation.json`, in
+every trial row of the search and in `ml_status.json` — three plain statistics of
+the grid, with **no correction applied and none implied**. This layer does not
+deflate the score, and saying so is the point: the correction belongs to whoever
+reads the number, and it cannot be made at all without the population it was a
+maximum over. All three are `null` when nothing qualified and the threshold fell
+back to the grid floor, which is itself the loudest thing the three can say.
 
 ## 10. Artifacts and modules
 
