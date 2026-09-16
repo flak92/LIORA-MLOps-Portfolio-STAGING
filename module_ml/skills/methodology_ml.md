@@ -460,10 +460,23 @@ draws, the prior and its weight, the clipping, the endpoints, `multivariate`,
 `group`, `constant_liar` — none of them is written here, and one of them is a
 function rather than a number, so copying them into `config.py` would fork the
 library's internals into this repo and let the fork drift. They are pinned
-instead: `==` in `requirements.txt`, a hash in `requirements.lock` and the base
-image by digest. A version bump therefore changes the method and re-bases the
-hash in § 12 — it cannot be a silent drift, which is the property that was
-wanted.
+instead by `==` in `requirements.txt`. A version bump therefore changes the method
+and re-bases the hash in § 12 — it is never a silent drift, which is the property
+that was wanted.
+
+**The ledger is a file of this repository, and it is byte-deterministic.** Every
+point every study drew is one JSON object on one line of
+`store/trials/<TICKER>/<TICKER>_hyperparameter_search_trials.jsonl`, appended by
+`dataset.append_jsonl` and never rewritten — the technique the coordinate search's
+own ledger uses, and the whole of what a ledger needs. A line carries where it was
+drawn (`ml-hpo` or `coordinate_search`), the round when a loop drew it, the study's
+place in the file, the trial's place in the study, its state, the point the sampler
+drew and what the trial left. It carries **no run id, no timestamp and no host
+name**, which is the property that matters: two studies over an empty store leave
+the same bytes, so `rm -rf store/trials/<TICKER>` followed by two runs is a
+comparison and not an anecdote. A record that cannot be compared is a note; this one
+is evidence. The search's own `hpo` studies reach it too — until it was this file
+they reached nothing at all, and the only trace of them was a count.
 
 **A pruned trial and a completed one do not share a ledger key.** A completed
 trial carries `cagr_validation_path`, the chained path's growth rate at the

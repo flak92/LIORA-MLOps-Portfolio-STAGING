@@ -20,10 +20,6 @@ export STORE_TRIALS_DIR := $(CURDIR)/store/trials
 export STORE_RUN_RECORDS_DIR := $(CURDIR)/store/run_records
 export STORE_STATUS_DIR := $(CURDIR)/store/status
 STORES := store/raw_1m store/assets_artifacts store/trials store/run_records store/status
-# mlflow speaks at import: it opens a telemetry client and prints an agent hint unless told otherwise. Both are off
-# here and in docker-compose.yml, so a stage run in a venv is as quiet and as offline as one run in a container
-export MLFLOW_DISABLE_TELEMETRY := true
-export MLFLOW_DISABLE_AGENT_HINT := 1
 # the basket — the one definition. ASSET=<TICKER> on the make line narrows every per-asset stage to one asset; make
 # exports ASSET into every recipe's environment, which is harmless: no service reads it, and a runner is told its assets
 # by --tickers

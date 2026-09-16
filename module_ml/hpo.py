@@ -17,30 +17,32 @@ not used: it compares a trial's best value over all its steps with the median of
 and with folds as calendar years that comparison is not of like with like.
 
 Every point the search drew is left in the asset's trial ledger, where the parameters file keeps only the
-one it chose; the ledger is this module's mlflow boundary."""
+one it chose. The ledger is JSON Lines appended a line at a time — the technique the coordinate search's own
+ledger uses, written by `dataset.append_jsonl` and by nothing else."""
 
 from __future__ import annotations
 
-import mlflow
 import numpy as np
 import optuna
 
 from . import config, dataset, model, strategy, train, validation
 
 
-def log_trials(ticker: str, trials: list[dict]) -> None:
-    """Every trial of the search: one mlflow run per trial, named `hpo_<n>` — its place in that search, counting from
-    one — in the asset's own ledger, so two fanned-out processes share no path and no experiment id. The experiment
-    is the ticker and is reused, so a rerun appends a search of its own, `hpo_1` again; the ledger only grows. mlflow's
-    own vocabulary, its run id among it, begins and ends inside this call."""
-    ledger = config.trials_sqlite(ticker)
-    ledger.parent.mkdir(parents=True, exist_ok=True)
-    mlflow.set_tracking_uri(f"sqlite:///{ledger}")
-    mlflow.set_experiment(ticker)
-    for index, trial in enumerate(trials, start=1):
-        with mlflow.start_run(run_name=f"hpo_{index}"):
-            mlflow.log_params(trial["params"])
-            mlflow.log_metrics(trial["metrics"])
+def log_trials(ticker: str, study: optuna.Study, origin: str, round_number: int | None) -> None:
+    """Every point a study drew, one line each, appended to the asset's ledger and never rewritten.
+
+    A study's place in the ledger is read off the ledger: every study opens with its own trial 0, so the
+    lines carrying that number are the studies before this one. One read per study and no state kept outside
+    the file, which is why two fanned-out processes need nothing from each other — they write different
+    assets' files.
+
+    Nothing here is written differently by a second run: no run id, no timestamp, no host name. Two studies
+    over an empty store therefore leave the same bytes, and the ledger stops being a note about the search
+    and becomes a thing the search can be proved against. The ledger only grows; a hand clears it."""
+    ledger = config.hyperparameter_search_trials_jsonl(ticker)
+    search_index = 1 + sum(row["trial_number"] == 0 for row in dataset.load_jsonl(ledger)) if ledger.exists() else 1
+    for trial in study.trials:
+        dataset.append_jsonl(ledger, trial_row(trial, origin, round_number, search_index))
 
 
 # the key the chosen point's value is published under, and the name one trial's value carries in the
@@ -119,13 +121,22 @@ def trial_metrics(trial: optuna.trial.FrozenTrial) -> dict[str, float]:
     return {"fold_cagr_bound_at_pruning": trial.intermediate_values[max(trial.intermediate_values)]}
 
 
-def trial_params(trial: optuna.trial.FrozenTrial) -> dict:
-    """The point the trial drew, and for a pruned one the fold it was stopped at — a bound says nothing
-    without the fold it bounds."""
-    if trial.value is not None:
-        return trial.params
-    return {**trial.params,
-            "pruned_at_fold": config.VALIDATION_FOLD_IDS[max(trial.intermediate_values)]}
+def trial_row(trial: optuna.trial.FrozenTrial, origin: str, round_number: int | None,
+              search_index: int) -> dict:
+    """One trial as one line: where it was drawn and in which round, its place in the study and the study's
+    in the ledger, the point the sampler drew, and what the trial left.
+
+    Every key stands on every line, `null` where it does not apply, so the file reads as one table and not
+    as two — a completed trial's value and a pruned trial's bound are different quantities and are never the
+    same column, but a reader counting lines should not have to know that first."""
+    pruned = trial.value is None
+    return {"origin": origin, "round": round_number, "search_index": search_index,
+            "trial_number": trial.number, "state": "pruned" if pruned else "complete",
+            "params": trial.params,
+            TRIAL_METRIC_KEY: None, "fold_cagr_bound_at_pruning": None, "pruned_at_fold": None,
+            **trial_metrics(trial),
+            **({"pruned_at_fold": config.VALIDATION_FOLD_IDS[max(trial.intermediate_values)]}
+               if pruned else {})}
 
 
 def search_hyperparameters(xy: dict, bars_1m: dict[str, np.ndarray],
@@ -160,6 +171,7 @@ def moves(state: dict, asset: dict, profile: dict, family: str) -> tuple:
     study = search_hyperparameters(asset["xy_for"](state), asset["bars_1m"], state["best_params"],
                                   asset.get("champion_by_fold"))
     asset["trials_drawn"] = len(study.trials) - 1        # the enqueued start is the state, not a draw
+    log_trials(asset["ticker"], study, "coordinate_search", asset["round"])
     completed = study.get_trials(deepcopy=False, states=(optuna.trial.TrialState.COMPLETE,))
     if not completed:
         return ()
@@ -194,8 +206,7 @@ def main() -> int:
         }
         out = config.parameters_json(ticker)
         dataset.write_json(out, payload)
-        log_trials(ticker, [{"params": trial_params(trial), "metrics": trial_metrics(trial)}
-                            for trial in study.trials])
+        log_trials(ticker, study, "ml-hpo", None)
         print(f"{ticker} {out.name}: {OBJECTIVE_KEY} {study.best_value:.6f} "
               f"(trial {study.best_trial.number})", flush=True)
     return 0

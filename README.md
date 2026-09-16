@@ -95,9 +95,9 @@ ledger alone grows, one search more per `ml-hpo`, and beside the chain the crawl
 grow one entry per file crawled. The dashboard is
 docker-only and reachable on loopback alone; on a remote machine tunnel with
 `ssh -L 8900:127.0.0.1:<port> <host>`, `<port>` the one `make on` printed there.
-Five direct dependencies across
-the four modules and nothing else — `duckdb` (storage and query: data, features, ml), `mlflow-skinny` (the hyper-parameter
-search's trial ledger: ml), `numpy` (mathematics: features, ml), `optuna` (hyper-parameter search: ml) and `xgboost-cpu`
+Four direct dependencies across
+the four modules and nothing else — `duckdb` (storage and query: data, features, ml),
+`numpy` (mathematics: features, ml), `optuna` (hyper-parameter search: ml) and `xgboost-cpu`
 (model: ml); `module_monitoring` is standard library only. The CPU wheel is deliberate, because the research layer trains with `tree_method=hist` and `nthread=1`.
 
 ```
@@ -140,7 +140,7 @@ object. Everything below it describes the method, not the data provider.
 | `store/raw_1m/` | `STORE_RAW_1M_DIR` | `/store/raw_1m` | no — the Lean-exact raw ZIPs, one per venue, symbol and UTC day |
 | `store/assets_artifacts/` | `STORE_ASSETS_ARTIFACTS_DIR` | `/store/assets_artifacts` | the remnant only: `<TICKER>_README.md`, `<TICKER>_parameters.json`, and `<TICKER>_feature_set.json` once promoted |
 | `store/run_records/` | `STORE_RUN_RECORDS_DIR` | `/store/run_records` | no |
-| `store/trials/` | `STORE_TRIALS_DIR` | `/store/trials` | no — one ledger per asset, every point every hyper-parameter search drew, a rerun appending a search of its own; `module_ml/hpo.py` alone writes it, the `ml` runner the one service that mounts it, and a hand clears it |
+| `store/trials/` | `STORE_TRIALS_DIR` | `/store/trials` | no — `<TICKER>_hyperparameter_search_trials.jsonl`, one JSON object a line, appended and never rewritten: every point every study drew, the stage's and the coordinate search's alike, a rerun appending a study of its own; `module_ml/hpo.py` alone writes it, the `ml` runner the one service that mounts it, and a hand clears it. It carries no run id, no timestamp and no host name, so two studies over an empty store leave the same bytes |
 | `store/status/` | `STORE_STATUS_DIR` | `/store/status` | yes — the four snapshots, so a fresh clone opens on real numbers |
 
 The store is the boundary between compute and state (`module_skills/glossary.md`

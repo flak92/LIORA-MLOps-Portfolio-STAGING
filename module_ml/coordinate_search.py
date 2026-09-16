@@ -298,7 +298,7 @@ def main() -> int:
         active_barriers = dataset.load_barriers(ticker)
         xy = dataset.build_xy(cat, timeframes, catalogue_values, decision_grids,
                               dataset.load_label_events(ticker, cat), active_columns, active_barriers)
-        asset = {"xy": xy, "catalogue": cat, "timeframes": timeframes,
+        asset = {"ticker": ticker, "round": None, "xy": xy, "catalogue": cat, "timeframes": timeframes,
                  "catalogue_values": catalogue_values, "decision_grids": decision_grids,
                  "label_inputs": labels.load_label_inputs(ticker, cat),
                  "bars_1m": strategy.load_bars_1m(ticker), "champion_by_fold": None}
@@ -366,6 +366,7 @@ def main() -> int:
             # what this round accepted, kept aside until it ends: a round replayed after an interrupt walks
             # its families again, and the file's path must hold each expansion once, not once per attempt
             round_accepted, round_path, round_drawn = False, [], collections.Counter()
+            asset["round"] = round_number      # a generator that keeps its own ledger says which round it drew in
             # a round is its schedule, read in order; a profile searches the loops it names and skips the rest
             for loop, family in config.ROUND_SCHEDULE:
                 if loop not in profile["loops"]:

@@ -275,8 +275,13 @@ def coordinate_search_profile_json(ticker):
     return artifact_dir(ticker) / f"{ticker}_coordinate_search_profile.json"
 
 
-def trials_sqlite(ticker):
-    return STORE_TRIALS_DIR / ticker / "trials.sqlite3"
+def hyperparameter_search_trials_jsonl(ticker):
+    """Every point every hyper-parameter study drew, one JSON object a line, appended and never rewritten —
+    the same technique the coordinate search's ledger uses, and the whole of it. The parameters file keeps
+    the one point that was chosen; this keeps the ones that were not, which is what makes the choice
+    readable. It carries no run id, no timestamp and no host name, so two studies over an empty store leave
+    the same file to the byte."""
+    return STORE_TRIALS_DIR / ticker / f"{ticker}_hyperparameter_search_trials.jsonl"
 
 
 def feature_set_json(ticker):

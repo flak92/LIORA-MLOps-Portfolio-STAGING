@@ -4,7 +4,7 @@ The asset is the primary object; its container is how a stage is run for it
 locally, and the engine is the support layer. One image, built from the root `Dockerfile`;
 three runners — `data`, `features`, `ml`, one per module of the chain, a role and a one-off
 each — and two residents, `dashboard` and `devops`; every service written out in `docker-compose.yml` under two anchors: `x-store-environment` carries
-the store contract every service reads — the five `STORE_*_DIR` — and beside it the thread cap and the three mlflow facts; `x-service` is what
+the store contract every service reads — the five `STORE_*_DIR` — and beside it the thread cap; `x-service` is what
 every service is — the `build`, the `image`, `init`, `user`, that environment and the tree mount `.:/app` — each service
 respelling its `volumes:` whole, the tree mount and the stores it touches, because a service's key replaces the anchor's; a
 resident adds its own `command:`, and a runner carries none. The project is named `liora` in the file, so a

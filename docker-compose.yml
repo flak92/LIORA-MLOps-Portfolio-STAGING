@@ -1,6 +1,5 @@
 # one image, two anchors, five services — a service is a role, not an image. x-store-environment is the store contract:
-# the five STORE_*_DIR every config.py reads, one variable per store, plus the thread cap and the three mlflow facts
-# that are correctness, not settings. x-service is what every service of this file is. The three runners — data,
+# the five STORE_*_DIR every config.py reads, one variable per store, plus the thread cap. x-service is what every service of this file is. The three runners — data,
 # features, ml — carry no command: a stage is `docker compose run --rm -T <runner> python -m <module>.<stage> --tickers
 # <TICKER>`, one one-off container per asset or one for the whole basket, and exits; the two residents — dashboard and
 # devops — serve, each under its own command.
@@ -18,11 +17,6 @@ x-store-environment: &store_environment
   STORE_RUN_RECORDS_DIR: /store/run_records
   STORE_STATUS_DIR: /store/status
   OMP_NUM_THREADS: "1"
-  # mlflow speaks at import — a telemetry client and an agent hint — and stamps a run with the name of the user
-  # running it; this image has no passwd entry for the container's uid, so getpass.getuser() would raise
-  MLFLOW_DISABLE_TELEMETRY: "true"
-  MLFLOW_DISABLE_AGENT_HINT: "1"
-  USER: liora
 
 x-service: &service
   build: .

@@ -23,12 +23,16 @@ the working path.) If a change conflicts with this file, the change is wrong.
 - **Minimum requirements.** Python 3.12.x with `venv` and `pip`; the container
   is `python:3.12-slim`, one image for the tree. A library is added
   only when the standard library and the current stack — `duckdb`,
-  `mlflow-skinny`, `numpy`, `optuna`, `xgboost-cpu` — cannot do the job, or when
+  `numpy`, `optuna`, `xgboost-cpu` — cannot do the job, or when
   it is the field's own instrument for a responsibility this project names and
   the stack's equivalent would be a private reimplementation of it: § Canonical
   vocabulary's preference for an established name over a local synonym, read
-  forward from names to instruments. `mlflow-skinny` is the one such addition
-  and the trial ledger the one such responsibility. By the same reading the
+  forward from names to instruments. No library stands on that reading today.
+  The trial ledger did, and does not: it is JSON Lines written by
+  `dataset.append_jsonl`, the technique the coordinate search's own ledger
+  already uses, and what this project needed was not the instrument but a
+  smaller thing than it — a file of lines, which is what a ledger is. By the
+  same reading the
   host admits `gum`, the field's own instrument for a responsibility this
   project names — a hand's choice in a terminal and the screens around it, the
   crawler's text-based user interface (TUI) — where the alternative would be a
@@ -377,7 +381,7 @@ inside the call that speaks it, and project names begin at the return value.
 The boundaries, each with the file that owns it: the Lean tree
 (`module_data/lean.py`), the Binance and Bybit REST parameters
 (`download_binance.py`, `download_bybit.py`, and `module_data/config.py` for the venue constants that carry the REST word `KLINE`), xgboost and optuna
-(`module_ml/model.py`, `module_ml/hpo.py`), mlflow (`module_ml/hpo.py`), numpy (every module that computes),
+(`module_ml/model.py`, `module_ml/hpo.py`), numpy (every module that computes),
 argparse (`module_data/config.py`, `module_features/config.py`, `module_ml/config.py` — the one parser, twice by extraction —,
 `module_ml/coordinate_search_promote.py`, `module_skills/sub_module_scalability_crawler/crawl.py` and `module_features/sub_module_coordinate_search_terminal/terminal.py`, for their `-h`, `--help` and, in the terminal's case, the asset the launcher names), DuckDB SQL (every module that queries), the SVG
 and DOM attributes (every `*.js` of `module_monitoring`, its sub-module included), docker compose (`Makefile`,
@@ -505,7 +509,7 @@ is wrong.
 | D09 | artifact names and keys move only with the register: every key of every payload has a row in `module_skills/glossary.md`, and a key added, dropped or renamed moves that row in the same commit. The feature layer's contract file `<TICKER>_catalogue.json`, the `catalogue` block in `features_status.json` beside `assets[].row_count_by_timeframe`, the `ticker` key in every row of `data_status.json`, and that snapshot's own measurement set — which `REPORT_dashboard_data_minimalism.md` argues field by field — are each registered there |
 | D10 | determinism is unchanged: the caps, the seed, the pinned orders (`module_skills/skill_determinism.md`) |
 | D11 | parity: the chain on the frozen raw store reproduces the nine BTC artifacts and the three computational snapshots, normalised, byte for byte against the reference list `README.md` § Parity. The three snapshots are identical under the same raw-store fingerprint; `data_status.json` describes the whole canonical series and moves with every top-up by design, so a reference list carries the fingerprint of the store it was taken on as its first line and a differing fingerprint re-bases that one file and no other. The files a hand drafts — `<TICKER>_coordinate_search_profile.json` and, once promoted, `<TICKER>_feature_set.json` and `<TICKER>_barriers.json` — stand outside it: no stage derives them. So do the coordinate search's two, a hand's stage rather than the chain's: `<TICKER>_coordinate_search.json`, where the search stands at a round boundary, and `<TICKER>_coordinate_search_trials.jsonl`, its ledger of scored states — their proof is that two runs of one profile, and a run interrupted and resumed, give the same bytes in both. Both are **tracked** all the same, because `ml_status.json` and `<TICKER>_README.md` read them and those two are inside the proof: a clone that could not rebuild them could not reproduce the two files that quote them, and the parity of the chain would rest on a file nobody shipped. A change that reshapes one of the nine re-bases its line and no other — the gate is then a field-level before/after comparison, every kept field byte-identical, beside the lines held fixed |
-| D12 | zero cloud mechanisms: nothing in the tree reaches a service off this host but two calls — the venues' public endpoints the two downloaders read, and the command line of a vendor of the crawler, chosen in its TUI, in its user's own login, outside the chain and gating nothing — and `mlflow` writes only into the ledger `trials_sqlite()` builds in `module_ml/config.py` under `STORE_TRIALS_DIR`, a local file `module_ml/hpo.py` addresses as `sqlite:///`, never a network location; the five pins of `requirements.txt` are the project's, and a sixth moves this line in the commit that adds it |
+| D12 | zero cloud mechanisms: nothing in the tree reaches a service off this host but two calls — the venues' public endpoints the two downloaders read, and the command line of a vendor of the crawler, chosen in its TUI, in its user's own login, outside the chain and gating nothing — and `the trial ledger is the file `hyperparameter_search_trials_jsonl()` builds in `module_ml/config.py` under `STORE_TRIALS_DIR`, appended by `module_ml/hpo.py` alone and never a network location; the five pins of `requirements.txt` are the project's, and a sixth moves this line in the commit that adds it |
 | D13 | `features_status.json` is written by `module_features.status` |
 | D14 | every object of `module_skills/glossary.md` § Twice by extraction is marked `# twice by extraction` directly above its own definition — one marker per object, never one above a block of objects — and changed on every side at once |
 | D15 | the tracked remnant of the artifacts store — `<TICKER>_README.md`, `<TICKER>_parameters.json`, once drafted `<TICKER>_coordinate_search_profile.json` and, once promoted, `<TICKER>_feature_set.json` and `<TICKER>_barriers.json` — and the four snapshots are tracked, so a fresh clone opens on real numbers and on the profile the last search was run under |
