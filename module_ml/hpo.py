@@ -117,7 +117,9 @@ def search_hyperparameters(xy: dict, bars_1m: dict[str, np.ndarray],
     reads the point it chose, that point's value and every point it drew from one object. A point to start
     from is drawn first, before the sampler's own."""
     study = optuna.create_study(
-        direction="maximize", sampler=optuna.samplers.TPESampler(seed=config.SEED)
+        direction="maximize",
+        sampler=optuna.samplers.TPESampler(seed=config.SEED,
+                                           n_startup_trials=config.HYPERPARAMETER_SEARCH_STARTUP_TRIAL_COUNT),
     )
     if enqueue is not None:
         study.enqueue_trial(enqueue)
@@ -129,10 +131,16 @@ def search_hyperparameters(xy: dict, bars_1m: dict[str, np.ndarray],
 def moves(state: dict, asset: dict, profile: dict, family: str) -> tuple:
     """The hyper-parameter coordinate's one candidate: the best point of a study run on this state's own X
     and Y, warm-started at the point the state holds, so the study can never answer worse than where it
-    began. Nothing when the incumbent wins — the state is its own candidate and the loop keeps nothing."""
+    began. Nothing when the incumbent wins — the state is its own candidate and the loop keeps nothing.
+
+    The study's points are fits the search pays for and the ledger never sees, because only the one the study
+    chose becomes a state: the count goes back under `asset["trials_drawn"]`, every trial the study ran,
+    pruned and completed alike and the point it started from among them, so a reader of the search can weigh
+    this loop's answer against how many points it drew to get there."""
     del profile, family
     study = search_hyperparameters(asset["xy_for"](state), asset["bars_1m"], state["best_params"],
                                   asset.get("champion_by_fold"))
+    asset["trials_drawn"] = len(study.trials)
     completed = study.get_trials(deepcopy=False, states=(optuna.trial.TrialState.COMPLETE,))
     if not completed:
         return ()

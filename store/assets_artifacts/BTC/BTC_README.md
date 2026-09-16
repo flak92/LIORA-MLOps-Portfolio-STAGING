@@ -11,14 +11,14 @@ Research window 2021-01-01 → 2026-08-26, seed 42. One directory per ticker, on
 | `BTC_catalogue.json` | the feature layer's contract: the timeframes and their slots, the warm-up, the columns offered per timeframe and the default set — read once per stage | 2 KB |
 | `BTC_coordinate_search.json` | the coordinate search: every scored state, the beam, the path it took, the champion and the proposals | 10 KB |
 | `BTC_coordinate_search_profile.json` | the search profile: the columns admitted, the state to start from, each coordinate's grid and the loops of a round — drafted by a hand | 1 KB |
-| `BTC_coordinate_search_trials.jsonl` | the coordinate search's ledger: one scored state a line, appended and never rewritten | 112 KB |
+| `BTC_coordinate_search_trials.jsonl` | the coordinate search's ledger: one scored state a line, appended and never rewritten | 63 KB |
 | `BTC_feature_set.json` | the promoted feature set: its columns per timeframe, a hand's choice — absent, the default set is the asset's | — |
 | `BTC_features_ss-15-hh-dd-MM.parquet` | the catalogue on 15m — every definition offered on it, on the decision grid | 10,699 KB |
 | `BTC_features_ss-mm-01-dd-MM.parquet` | the catalogue on 1h — every definition offered on it, on the decision grid | 2,950 KB |
 | `BTC_features_ss-mm-04-dd-MM.parquet` | the catalogue on 4h — every definition offered on it, on the decision grid | 1,667 KB |
 | `BTC_label_events_ss-15-hh-dd-MM.parquet` | Y — triple-barrier outcome and the event prices | 5,265 KB |
 | `BTC_model_evaluation.json` | classification metrics per fold | 7 KB |
-| `BTC_oos_predictions_ss-15-hh-dd-MM.parquet` | out-of-sample class probabilities, full windows | 2,394 KB |
+| `BTC_oos_predictions_ss-15-hh-dd-MM.parquet` | out-of-sample class probabilities, full windows | 2,390 KB |
 | `BTC_parameters.json` | the one parameters file: what the search chose | 385 B |
 | `BTC_strategy_evaluation.json` | threshold, PnL and the equity curve | 10 KB |
 
@@ -40,14 +40,14 @@ The default set of the catalogue — no promoted file. The asset's feature set b
 
 ## Model
 
-Search: 3 Optuna trials, best best_cagr_validation_path 0.013660. Winner: depth 3, eta 0.2537, 100 rounds, subsample 0.799, colsample 0.578, min_child_weight 37, lambda 0.2051, alpha 0.0131.
+Search: 20 Optuna trials, best best_cagr_validation_path 0.052291. Winner: depth 3, eta 0.0600, 250 rounds, subsample 0.890, colsample 0.521, min_child_weight 50, lambda 9.1482, alpha 0.2199.
 
 | fold | prior log-loss | model log-loss | rel. skill | scored |
 | --- | --- | --- | --- | --- |
-| F2 | 0.873507 | 0.849144 | +2.79% | 35,023 |
-| F3 | 0.918886 | 0.825745 | +10.14% | 35,018 |
-| F4 | 0.877705 | 0.803257 | +8.48% | 35,120 |
-| **F5 — final holdout** | 0.866520 | 0.800418 | +7.63% | 57,776 |
+| F2 | 0.873507 | 0.827690 | +5.25% | 35,023 |
+| F3 | 0.918886 | 0.819000 | +10.87% | 35,018 |
+| F4 | 0.877705 | 0.797334 | +9.16% | 35,120 |
+| **F5 — final holdout** | 0.866520 | 0.798201 | +7.88% | 57,776 |
 
 ## Fold geometry
 
@@ -62,16 +62,16 @@ Search: 3 Optuna trials, best best_cagr_validation_path 0.013660. Winner: depth 
 
 ## Strategy
 
-Entry edge threshold **0.42**. Cost 0.06% per side; the hierarchy gate requires the side to match the 4h trend sign with at least 2 of 3 timeframes agreeing.
+Entry edge threshold **0.34**. Cost 0.06% per side; the hierarchy gate requires the side to match the 4h trend sign with at least 2 of 3 timeframes agreeing.
 
 | fold | Sharpe | maxDD | trades | hit rate | exposure | final equity |
 | --- | --- | --- | --- | --- | --- | --- |
-| F2 | +1.026 | 7.7% | 68 | 50.0% | 2.17% | 1.0986 |
-| F3 | -0.858 | 9.1% | 50 | 38.0% | 1.67% | 0.9545 |
-| F4 | -0.084 | 7.0% | 30 | 50.0% | 0.93% | 0.9933 |
-| **F5 — final holdout** | -1.660 | 14.0% | 73 | 41.1% | 1.48% | 0.8778 |
+| F2 | +2.190 | 5.2% | 56 | 57.1% | 1.74% | 1.2340 |
+| F3 | -0.349 | 10.4% | 65 | 41.5% | 2.10% | 0.9761 |
+| F4 | -0.413 | 13.1% | 58 | 41.4% | 1.80% | 0.9675 |
+| **F5 — final holdout** | -1.809 | 20.2% | 100 | 37.0% | 2.00% | 0.8333 |
 
-Final-holdout exits: upper_barrier 19, lower_barrier 13, vertical 41, ambiguous 0.
+Final-holdout exits: upper_barrier 17, lower_barrier 26, vertical 57, ambiguous 0.
 
 ## Reproducing the ML artifacts in this folder
 

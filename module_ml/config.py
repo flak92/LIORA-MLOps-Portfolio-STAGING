@@ -110,9 +110,13 @@ VALIDATION_FOLD_IDS = (2, 3, 4)
 FINAL_HOLDOUT_FOLD_ID = 5           # F5 — evaluated, never selected on
 
 # ---- HPO (Optuna TPE, sequential, in-memory)
-# a handful of trials and short boosting: a run proves the chain works end to end, and the counts the research needs
-# are chosen once the method is final
-HYPERPARAMETER_SEARCH_TRIAL_COUNT = 3
+# the counts the research runs at, chosen when the method was frozen and not before. TPE draws at random until it has
+# HYPERPARAMETER_SEARCH_STARTUP_TRIAL_COUNT trials to fit on — completed and pruned alike, in this Optuna — and models
+# from the next one, so a trial count at or below the startup count is a random search wearing the sampler's name. The
+# startup count is written here rather than left to the library: a number that decides how the experiment searches is
+# the experiment's, and a default that moves with a version bump is not a frozen method
+HYPERPARAMETER_SEARCH_STARTUP_TRIAL_COUNT = 10
+HYPERPARAMETER_SEARCH_TRIAL_COUNT = 20
 HYPERPARAMETER_SEARCH_SPACE = {
     "max_depth": ("int", 2, 6),
     "eta": ("log", 0.01, 0.3),
@@ -121,7 +125,7 @@ HYPERPARAMETER_SEARCH_SPACE = {
     "colsample_bytree": ("float", 0.5, 1.0),
     "lambda": ("log", 0.1, 10.0),
     "alpha": ("log", 0.01, 1.0),
-    "num_boost_round": ("int_step", 50, 100, 50),
+    "num_boost_round": ("int_step", 50, 600, 50),
 }
 XGBOOST_FIXED_PARAMETERS = {
     "objective": "multi:softprob",

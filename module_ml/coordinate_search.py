@@ -20,6 +20,7 @@ Promotes nothing: the proposals are read by a hand and copied by coordinate_sear
 
 from __future__ import annotations
 
+import collections
 import json
 import math
 
@@ -28,7 +29,10 @@ import numpy as np
 from . import barrier_search, config, dataset, feature_set_search, hpo, labels, model, strategy, train
 
 # one module per coordinate — the token a profile's `loops` names, the module that knows its moves and the
-# families it expands them in
+# families it expands them in. A generator answers with the candidates it offers and, under
+# `asset["trials_drawn"]`, with how many points it put through a fit to find them: for a generator that
+# enumerates a grid those are the same points, and the core sees them as ledger lines; for one that runs a
+# study inside itself they are not, and the count would otherwise be invisible to every reader
 LOOP_MODULES = {config.COORDINATE_SEARCH_LOOP_BARRIER: barrier_search,
                 config.COORDINATE_SEARCH_LOOP_FEATURE_SET: feature_set_search,
                 config.COORDINATE_SEARCH_LOOP_HPO: hpo}
@@ -292,8 +296,8 @@ def main() -> int:
         path, ledger = config.coordinate_search_json(ticker), config.coordinate_search_trials_jsonl(ticker)
         state_file = dataset.load_json(path) if path.exists() else None
         if state_file is None or state_file["inputs"] != inputs:
-            state_file = {"inputs": inputs, "beam": [], "champion_trial": None,
-                          "round_count": 0, "search_converged": False, "path": []}
+            state_file = {"inputs": inputs, "beam": [], "champion_trial": None, "round_count": 0,
+                          "search_converged": False, "path": [], "trials_drawn_by_loop": {}}
             ledger.unlink(missing_ok=True)
         # every line of the ledger, the ones a round interrupted after the last boundary wrote among them:
         # those are cache hits, because the round they belong to starts again at its first family
@@ -343,7 +347,7 @@ def main() -> int:
             round_number = state_file["round_count"] + 1
             # what this round accepted, kept aside until it ends: a round replayed after an interrupt walks
             # its families again, and the file's path must hold each expansion once, not once per attempt
-            round_accepted, round_path = False, []
+            round_accepted, round_path, round_drawn = False, [], collections.Counter()
             # a round is its schedule, read in order; a profile searches the loops it names and skips the rest
             for loop, family in config.ROUND_SCHEDULE:
                 if loop not in profile["loops"]:
@@ -356,8 +360,12 @@ def main() -> int:
                     asset["champion_by_fold"] = {fold_id: parent_row["validation"][f"fold_{fold_id}"]
                                                  for fold_id in config.VALIDATION_FOLD_IDS}
                     inherited = None      # the parent's own material, built only if a child inherits it
-                    for move, label, child, rebuild in LOOP_MODULES[loop].moves(
-                            parent_state, asset, profile, family):
+                    # the fits a generator spends inside itself are its own to count: zeroed before it is
+                    # asked and read back after, so a generator that spends none reports none without saying so
+                    asset["trials_drawn"] = 0
+                    candidates = LOOP_MODULES[loop].moves(parent_state, asset, profile, family)
+                    round_drawn[loop] += asset["trials_drawn"]
+                    for move, label, child, rebuild in candidates:
                         if rebuild == config.REBUILD_BACKTEST and inherited is None:
                             inherited = state_material(asset, parent_state, config.REBUILD_FITS, None)
                         index = score(child, loop, family, move, parent, rebuild, inherited)
@@ -373,6 +381,8 @@ def main() -> int:
             # flight carries the round it belongs to, and a run interrupted inside a round resumes at the
             # top of that round, every state it already scored a cache hit
             state_file["path"].extend(round_path)
+            state_file["trials_drawn_by_loop"] = dict(
+                collections.Counter(state_file["trials_drawn_by_loop"]) + round_drawn)
             state_file["beam"] = list(beam)
             state_file["champion_trial"] = beam[0]
             state_file["round_count"] = round_number

@@ -223,7 +223,9 @@ Every number here is reproducible. The proof, repeatable on any host:
 
 1. a fresh `git clone` of this repository, and a frozen copy
    of the raw store hardlinked into `store/raw_1m/` — the downloaders never
-   overwrite an existing ZIP;
+   overwrite an existing ZIP — fingerprinted **before** the chain runs, so the
+   fingerprint names the store the hashes came out of:
+   `find store/raw_1m -name '*.zip' -printf '%P %s\n' | sort | md5sum`;
 2. `make build data-ingest data-status features-all ml-all` — the chain without
    `data-download`, whose window ends at today's UTC midnight and would move the
    data snapshot; the download is run separately, its gate an exit code of 0;
@@ -231,7 +233,13 @@ Every number here is reproducible. The proof, repeatable on any host:
    parameters, the out-of-fold predictions, the model and strategy evaluations,
    the asset README — byte-identical to the reference list;
    `BTC_catalogue.json`, the one new file, identical between two runs;
-4. the three computational snapshots identical after dropping `generated_at_utc` from each.
+4. the three computational snapshots identical after dropping the `generated_at_utc` line —
+   `grep -v '^ "generated_at_utc":'`, anchored because it is one top-level key on its own
+   line and not a substring to be hunted — under the
+   same fingerprint. `data_status.json` carries no `window_end`: it describes the
+   whole canonical series, including the minutes past `RESEARCH_END_UTC`, and moves
+   with every top-up by design. A differing fingerprint re-bases that one file and
+   leaves the other twelve hashes standing.
 
 The files a hand drafts stand outside this proof — `<TICKER>_coordinate_search_profile.json` and, once
 promoted, `<TICKER>_feature_set.json` and `<TICKER>_barriers.json`: no stage derives them, and the one

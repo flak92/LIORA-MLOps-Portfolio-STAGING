@@ -131,10 +131,12 @@ def coordinate_search_block(ticker: str, best_params: dict, active_columns_by_ti
         return None
     search = dataset.load_json(path)
     ledger = config.coordinate_search_trials_jsonl(ticker)
-    # the trials are the ledger's lines, and how many each loop scored is counted off them: one number in
-    # one place, derived where it is read rather than carried in a second file
+    # how many points each loop put through a fit: the ledger's lines for a loop that enumerates a grid,
+    # and the state file's own count for one that runs a study inside itself and offers only its answer, so
+    # the number the page shows is the whole exposure of the loop and not the part that happened to be kept
     trials = dataset.load_jsonl(ledger) if ledger.exists() else []
     trial_count_by_loop = collections.Counter(row["loop"] for row in trials if row["loop"])
+    trial_count_by_loop.update(search["trials_drawn_by_loop"])
     inputs_current = profile_path.exists() and search["inputs"] == dataset.to_json_safe(
         coordinate_search.build_search_inputs(best_params, active_columns_by_timeframe, active_barriers,
                                               cat, dataset.load_json(profile_path)))

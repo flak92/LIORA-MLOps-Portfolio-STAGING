@@ -115,7 +115,9 @@ def _state_rows(ticker: str, profile: dict | None, search: dict | None,
     if search is None:
         rows.append({"parameter": "search", "value": "none"})
         return rows
-    by_loop = {}
+    # the loops that enumerate a grid are counted off the ledger; the one that runs a study inside itself
+    # left its count in the state file, because only the point it chose ever became a line
+    by_loop = dict(search["trials_drawn_by_loop"])
     for row in trials:
         if row["loop"]:
             by_loop[row["loop"]] = by_loop.get(row["loop"], 0) + 1

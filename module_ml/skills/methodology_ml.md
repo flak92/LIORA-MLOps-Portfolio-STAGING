@@ -247,6 +247,18 @@ where the interrupted run's round began; both quantities now move only when the
 round ends, and the gate that caught it is the one that compares an interrupted
 run with an uninterrupted one byte for byte.
 
+**What a loop drew, against what it kept.** `trial_count_by_loop` is each loop's
+whole exposure, not the part that survived: for a loop that enumerates a grid it
+is the ledger's lines, and for the `hpo` loop it is `trials_drawn_by_loop` —
+every trial of every study it ran, pruned and completed alike and the point each
+study started from among them. The two are added where the snapshot is composed,
+so the page and the terminal read one number and do no arithmetic. Without it the
+`hpo` loop is invisible whenever it keeps nothing: it offers at most one candidate
+per beam member per round and none at all when the incumbent wins, so a search
+that drew a study on every member of every round can leave no trace of having
+searched at all, and the multiple-testing exposure a proposal should be read
+against would be understated by exactly the points it cost the most to draw.
+
 The proposals are the states a hand may promote: every trial no validation fold
 scores below the state the search started from, by the ranking above, and the
 champion the search accepted first among them.
@@ -413,9 +425,20 @@ model, call the same fold out-of-sample again.
 
 ## 7. Hyper-parameter search
 
-Optuna TPE (`seed = 42`), 3 sequential trials, in-memory study. The objective is
+Optuna TPE (`seed = 42`), 20 sequential trials, in-memory study. The objective is
 the quantity the search selects on: the CAGR of the validation path at the
 threshold § 9's rule would pick, maximised.
+
+**Ten of the twenty are the sampler's random start.** TPE fits its two densities
+only once it holds `n_startup_trials` trials — completed and pruned alike, in
+this Optuna — and draws at random until then, so a study of ten trials or fewer
+is a random search under the sampler's name and reports as a TPE one. The startup
+count is `HYPERPARAMETER_SEARCH_STARTUP_TRIAL_COUNT = 10`, written in
+`config.py` rather than inherited from the library: a number that decides how the
+experiment searches is the experiment's, and a default that moves with a version
+bump is not a frozen method. Trials 11–20 are the modelled ones. Both counts were
+chosen when the method was frozen; before that the file carried three trials and
+said so.
 
 **The stage draws no point to start from.** It is a function of X, Y and the
 frozen constants, so `<TICKER>_parameters.json` is a function of the raw store
@@ -426,9 +449,12 @@ search's `hpo` loop below, where the round's champion is an input the state file
 records in `inputs` and the comparison is against a state the search itself
 holds. Space: `max_depth` 2–6, `eta` log 0.01–0.3, `min_child_weight`
 1–50, `subsample` 0.5–1, `colsample_bytree` 0.5–1, `lambda` log 0.1–10,
-`alpha` log 0.01–1, `num_boost_round` 50–100 step 50. Fixed:
+`alpha` log 0.01–1, `num_boost_round` 50–600 step 50. Fixed:
 `multi:softprob`, `num_class = 3`, `tree_method = hist`, `nthread = 1`,
-`seed = 42`, no early stopping. The barrier geometry, the costs and the
+`seed = 42`, no early stopping — which is why `num_boost_round` reaches 600 and
+not 100: it is a tuned coordinate, and at the bottom of the `eta` range a
+hundred rounds cannot converge, so a short ceiling would leave the low end of
+`eta` unreachable rather than merely unchosen. The barrier geometry, the costs and the
 entry-edge-threshold grid are **never** in the space: the geometry is a
 coordinate of § 4's search and is promoted, not tuned. The
 `hyperparameter_search_result` section of `<TICKER>_parameters.json` keeps the
@@ -687,10 +713,22 @@ by it: `source_switch_count` and `rel_divergence` are monitored per symbol
 precisely so the effect is visible and countable.
 
 Known limitations: no regime-conditional gating, a per-asset feature set
-chosen by a stepwise search (§ 4) rather than learnt, no CUSUM event sampling, no meta-labelling, no fractional
+chosen by the coordinate search (§ 4) rather than learnt, no CUSUM event sampling, no meta-labelling, no fractional
 differentiation, fixed costs, unit position sizing. The class distribution is
 dominated by `y = 0` (the 2×ATR barrier is rarely touched within one 4H
 block) — reported per asset, not resampled.
+
+**The phase this layer is in.** What is being built here is the correctness of
+the machine, not a result from it: every stage has to answer like a calculator —
+the same input to the same bytes, no number arrived at by a path nobody can name,
+no constant inherited from a library default. Numbers this layer produces now are
+evidence that the machine is right, not findings about the market, and nothing in
+them is to be read as one. The palette of features and the compute the search is
+given are the next thing to grow, on a larger machine and with the cores opened
+up; the artifacts worth keeping are made there, once the machine is right. That
+is why a count like § 7's twenty is chosen for what makes the method honest and
+not for what makes a run short: the run's length is not the constraint this phase
+is under.
 
 ## 13. References (DOIs resolve)
 
