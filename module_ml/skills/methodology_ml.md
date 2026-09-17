@@ -206,7 +206,9 @@ subsample 0.7993 · colsample_bytree 0.5780 · lambda 0.2051 · alpha 0.01307
 ```
 
 which is a small model: depth 3 and a hundred rounds fit in about two seconds a
-fold, so `make ml-hpo` is ten seconds and `make ml-all` twenty-four. A state's
+fold, and at the time — three trials, a space that stopped at a hundred rounds —
+`make ml-hpo` was ten seconds and `make ml-all` twenty-four; neither is true of
+the counts and the space § 7 now holds. A state's
 cost is three such fits plus a replay of the threshold grid, and the fits are the
 part that moves: under a depth-8, thousand-round point the same round is hours,
 not minutes. Read the table as a shape, not as a duration, and re-measure it
@@ -228,9 +230,9 @@ tenth**: three fits are saved, but the threshold grid — 61 points over three
 folds — is replayed either way and is what a child of that family mostly is.
 Under a larger model the same child would be far cheaper than half, because the
 fits it skips would then dominate; half is the figure for a model this small, and
-it is the conservative one. The `hpo` loop appears in neither round because its
-study kept nothing: its one candidate starts from the point the state already
-holds, and here that point won.
+it is the conservative one. The `hpo` loop appears in no row because it accepted
+no move in either round; what its studies cost is their trials, counted per loop
+in `trial_count_by_loop` below and measured for the gate in § 7.
 
 **One row, one schema.** A trial's row carries the whole of Θ and every quantity
 measured on it — each fold's skill, Calmar ratio, CAGR, drawdown, profit factor
@@ -483,14 +485,31 @@ comparison and not an anecdote. A record that cannot be compared is a note; this
 is evidence. The search's own `hpo` studies reach it too — until it was this file
 they reached nothing at all, and the only trace of them was a count.
 
+**The ledger counts every study that ran; the state counts each round once.** A
+search resumed after an interrupt replays its round from the top, and the studies
+that round had already run are run again and are lines again, under a later
+`search_index`. That is what the ledger is for — a record of the work done, which a
+replay is — and it is why the ledger is not the exposure a proposal is read
+against. That number is the search's own `trial_count_by_loop`, added at the round
+boundary from the round that completed, so an interrupted run and an uninterrupted
+one write the same count. One writer per asset at a time: a study's `search_index`
+is read off the file before its lines are appended, so `ml-hpo` and a search of the
+same asset do not run together.
+
 **A pruned trial and a completed one do not share a ledger key.** A completed
 trial carries `cagr_validation_path`, the chained path's growth rate at the
 threshold the rule chose, and `admissible`, whether that threshold beats the
 champion on every fold. A pruned one carries neither, and carries `pruned_at_fold`
-instead. Both carry `admissible_threshold_count_by_fold`, one count per fold the
-trial reached — what the gate saw, written down rather than inferred from the fact
-that the trial survived. A pruned trial's last count is zero and a completed one's
-is not, which is the whole of the gate's story on one line.
+instead. Both carry two counts, one per fold the trial reached — what the gate saw,
+written down rather than inferred from the fact that the trial survived:
+`floor_clearing_threshold_count_by_fold`, the thresholds at which every fold so far
+clears the trade floor, asked in both modes; and
+`admissible_threshold_count_by_fold`, those of them that also beat the champion's
+Calmar, `null` for the stage, which has no champion. One key answering whichever of
+the two questions its writer had in mind would be a key the register could not
+define. The count the gate stops on is zero on a pruned trial's last fold and on no
+completed trial's — the floor's for the stage, the champion's for the search —
+which is the whole of the gate's story on one line.
 
 **The stage draws no point to start from.** It is a function of X, Y and the
 frozen constants, so `<TICKER>_parameters.json` is a function of the raw store
@@ -572,9 +591,9 @@ prior_logloss · model_logloss · relative_logloss_skill = 1 − model/prior
 ```
 
 `relative_logloss_skill` answers one question — does the model add information beyond knowing
-how often each class occurs? — and is **what both searches select on**: the hyper-parameter
-search minimises the log-loss behind it (§ 7), and the coordinate search accepts a move only
-when it rises, or does not fall, on every validation fold (§ 4). Metrics score the
+how often each class occurs? — and is reported beside every state and selects nothing: the
+hyper-parameter search maximises the validation path's CAGR (§ 7), and the coordinate search
+gates a move on each fold's Calmar ratio and ranks it by that same CAGR (§ 4). Metrics score the
 supervised subset of a fold
 whose maximum horizon fits inside it — the same t₀-decidable rule that governs
 strategy eligibility (§9); predictions cover the full fold.
@@ -702,20 +721,22 @@ back to the grid floor, which is itself the loudest thing the three can say.
 
 ## 10. Artifacts and modules
 
-Per asset in `store/assets_artifacts/<TICKER>/`, twelve files, registered file by
+Per asset in `store/assets_artifacts/<TICKER>/`, fifteen files, registered file by
 file in `../../module_skills/glossary.md` § Artifacts: the feature layer's contract
 `<TICKER>_catalogue.json`, three per-timeframe catalogue parquets, the
 label-events and out-of-sample predictions parquets on the 15m decision grid,
-two evaluation JSONs, the one parameters file, the feature set and its search
-when a hand has run them, and the README. Beside the
+two evaluation JSONs, the one parameters file, the README, and the five a hand's
+stages write — the search profile, the search's state and its ledger, and the
+promoted feature set and barrier geometry. Beside the
 manifest, outside it, lies the asset's own database,
 `<TICKER>_research_ohlcv.duckdb` — the market object every stage reads. The data
-files are regenerable; `<TICKER>_parameters.json`, `<TICKER>_README.md` and,
-once a hand has promoted one, `<TICKER>_feature_set.json` are tracked, because
-they are what makes the rest readable — and reproducible: the parameters are
-tuned for the set they were searched under, so the two travel together — and
-none carries a timestamp, so an unchanged experiment reproduces them byte
-for byte. Every JSON is canonical (sorted keys, numpy scalars converted) and
+files are regenerable; `<TICKER>_parameters.json`, `<TICKER>_README.md`, the
+search profile once drafted, the search's two files once it has run, and, once a
+hand has promoted them, `<TICKER>_feature_set.json` and `<TICKER>_barriers.json`
+are tracked, because they are what makes the rest readable — and reproducible:
+the parameters are tuned for the state they were searched under, so they travel
+together, and `ml_status.json` and the README read the search's two — and none
+carries a timestamp, so an unchanged experiment reproduces them byte for byte. Every JSON is canonical (sorted keys, numpy scalars converted) and
 carries **only what it computed** — no provenance envelope, no hashes. The
 settings a run used are `module_ml/config.py` at the commit that ran it — the
 commit is the record, and the parameters file carries only what the search

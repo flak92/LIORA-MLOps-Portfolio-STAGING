@@ -11,8 +11,8 @@ make features-coordinate-search-terminal ASSET=BTC    # the TUI for one asset of
 STORE_ASSETS_ARTIFACTS_DIR=store/assets_artifacts python3 -B -m module_features.sub_module_coordinate_search_terminal.terminal --tickers BTC -h   # the actions, the keys, plain output and the exit codes
 ```
 
-It computes nothing. It reads three files of the asset's folder — the feature layer's contract, the search's
-own state and the profile — and writes one, `<TICKER>_coordinate_search_profile.json`, which is a hand's
+It computes nothing. It reads four files of the asset's folder — the feature layer's contract, the search's
+own state and its ledger, and the profile — and writes one, `<TICKER>_coordinate_search_profile.json`, which is a hand's
 decision and may equally be edited in the file. Everything that runs, runs through `make`: the Makefile is
 where a container, a tmux session and the order of the chain are named.
 

@@ -80,9 +80,14 @@ block carries them.
 
 `PROPOSAL=` on the outer make line does nothing — the terminal always passes the rank a hand chose.
 
-A state file older than the code is not read: the terminal and the search fail on the missing key. Delete
-the file — the search writes a new one. A stage that guessed at a key it did not find would be guessing at
-which experiment the file described.
+A state file written by an older shape of the code is not migrated. Where it lacks a key the code reads, the
+terminal and the search fail on that key, loudly — a state from before the exposure count fails on
+`trial_count_by_loop` — and a hand deletes the search's two files so the search writes new ones. Where it holds
+every key the code reads and more besides, as a state from before the path and the proposals stopped copying
+their trials' numbers does, it is read and the extra keys are ignored: the tables are the same, because the
+numbers come from the ledger either way, but the file is not this code's bytes, and the proof that two runs
+give the same bytes is taken on a file this code wrote — delete it before taking it. A stage that guessed at a
+key it did not find would be guessing at which experiment the file described.
 
 ## Exits
 

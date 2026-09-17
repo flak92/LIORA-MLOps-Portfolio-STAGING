@@ -31,7 +31,9 @@ def catalogue_json(ticker: str) -> Path:
 
 # twice by extraction
 def coordinate_search_json(ticker: str) -> Path:
-    """Every scored state of the search, its beam, its path and its proposals — the stage's own state."""
+    """Where the search stood when a round began: what it was conditioned on, its beam, its champion, the
+    path it took and the states it proposes. Written at the top of a round, so it is on disk before the
+    ledger beside it — the trials themselves — holds its first line."""
     return artifact_dir(ticker) / f"{ticker}_coordinate_search.json"
 
 

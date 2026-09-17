@@ -31,7 +31,16 @@ the working path.) If a change conflicts with this file, the change is wrong.
   The trial ledger did, and does not: it is JSON Lines written by
   `dataset.append_jsonl`, the technique the coordinate search's own ledger
   already uses, and what this project needed was not the instrument but a
-  smaller thing than it — a file of lines, which is what a ledger is. By the
+  smaller thing than it — a file of lines, which is what a ledger is. `optuna`
+  stays on the first reading, and what it costs is measured rather than
+  assumed: `import optuna` loads `colorlog`, `tqdm` and `packaging` beside
+  `numpy`, and the rest of what its pin installs — `alembic`, `SQLAlchemy`,
+  `greenlet`, `Mako` and `MarkupSafe`, the storage it is never asked for, with
+  `PyYAML` and `typing_extensions` — is never imported by this tree. Whether
+  the sampler earns those packages against a seeded random search written in
+  `numpy` is an experiment — TPE against it at the research trial count, on the
+  larger machine — and not a preference this contract settles; if TPE does not
+  win, eleven packages go with it. By the
   same reading the
   host admits `gum`, the field's own instrument for a responsibility this
   project names — a hand's choice in a terminal and the screens around it, the
@@ -45,7 +54,7 @@ the working path.) If a change conflicts with this file, the change is wrong.
 - **UCAS — Useless Click Avoiding System.** Manual steps, clicks and context
   switches that can be automated, are: `make all` runs the whole pipeline
   from a fresh clone, every stage is idempotent in what it derives — the
-  trial ledger alone accumulates, each search appending its `hpo_<n>` runs,
+  trial ledger alone accumulates, each study appending its lines,
   until a hand clears it, and beside the chain the crawler's reports, one entry
   appended per file crawled — and the dashboard opens itself.
 - **Main = clean working logic.** No test frameworks, security layers,
@@ -509,10 +518,10 @@ is wrong.
 | D09 | artifact names and keys move only with the register: every key of every payload has a row in `module_skills/glossary.md`, and a key added, dropped or renamed moves that row in the same commit. The feature layer's contract file `<TICKER>_catalogue.json`, the `catalogue` block in `features_status.json` beside `assets[].row_count_by_timeframe`, the `ticker` key in every row of `data_status.json`, and that snapshot's own measurement set — which `REPORT_dashboard_data_minimalism.md` argues field by field — are each registered there |
 | D10 | determinism is unchanged: the caps, the seed, the pinned orders (`module_skills/skill_determinism.md`) |
 | D11 | parity: the chain on the frozen raw store reproduces the nine BTC artifacts and the three computational snapshots, normalised, byte for byte against the reference list `README.md` § Parity. The three snapshots are identical under the same raw-store fingerprint; `data_status.json` describes the whole canonical series and moves with every top-up by design, so a reference list carries the fingerprint of the store it was taken on as its first line and a differing fingerprint re-bases that one file and no other. The files a hand drafts — `<TICKER>_coordinate_search_profile.json` and, once promoted, `<TICKER>_feature_set.json` and `<TICKER>_barriers.json` — stand outside it: no stage derives them. So do the coordinate search's two, a hand's stage rather than the chain's: `<TICKER>_coordinate_search.json`, where the search stands at a round boundary, and `<TICKER>_coordinate_search_trials.jsonl`, its ledger of scored states — their proof is that two runs of one profile, and a run interrupted and resumed, give the same bytes in both. Both are **tracked** all the same, because `ml_status.json` and `<TICKER>_README.md` read them and those two are inside the proof: a clone that could not rebuild them could not reproduce the two files that quote them, and the parity of the chain would rest on a file nobody shipped. A change that reshapes one of the nine re-bases its line and no other — the gate is then a field-level before/after comparison, every kept field byte-identical, beside the lines held fixed |
-| D12 | zero cloud mechanisms: nothing in the tree reaches a service off this host but two calls — the venues' public endpoints the two downloaders read, and the command line of a vendor of the crawler, chosen in its TUI, in its user's own login, outside the chain and gating nothing — and `the trial ledger is the file `hyperparameter_search_trials_jsonl()` builds in `module_ml/config.py` under `STORE_TRIALS_DIR`, appended by `module_ml/hpo.py` alone and never a network location; the five pins of `requirements.txt` are the project's, and a sixth moves this line in the commit that adds it |
+| D12 | zero cloud mechanisms: nothing in the tree reaches a service off this host but two calls — the venues' public endpoints the two downloaders read, and the command line of a vendor of the crawler, chosen in its TUI, in its user's own login, outside the chain and gating nothing — and the trial ledger is the file `hyperparameter_search_trials_jsonl()` builds in `module_ml/config.py` under `STORE_TRIALS_DIR`, appended by `module_ml/hpo.py` alone and never a network location; the four pins of `requirements.txt` are the project's, and a fifth moves this line in the commit that adds it |
 | D13 | `features_status.json` is written by `module_features.status` |
 | D14 | every object of `module_skills/glossary.md` § Twice by extraction is marked `# twice by extraction` directly above its own definition — one marker per object, never one above a block of objects — and changed on every side at once |
-| D15 | the tracked remnant of the artifacts store — `<TICKER>_README.md`, `<TICKER>_parameters.json`, once drafted `<TICKER>_coordinate_search_profile.json` and, once promoted, `<TICKER>_feature_set.json` and `<TICKER>_barriers.json` — and the four snapshots are tracked, so a fresh clone opens on real numbers and on the profile the last search was run under |
+| D15 | the tracked remnant of the artifacts store — `<TICKER>_README.md`, `<TICKER>_parameters.json`, once drafted `<TICKER>_coordinate_search_profile.json`, once a search has run `<TICKER>_coordinate_search.json` and `<TICKER>_coordinate_search_trials.jsonl` (D11), and, once promoted, `<TICKER>_feature_set.json` and `<TICKER>_barriers.json` — and the four snapshots are tracked, so a fresh clone opens on real numbers and on the profile the last search was run under |
 | D16 | the fan-out and the detached search run through `docker compose run --rm`; nothing is `exec`'d into a resident |
 | D17 | `skills_status.json` is written by `module_skills.sub_module_scalability_crawler.status` alone, a function of the skill matrix's paths and the reports; the reports by `module_skills.sub_module_scalability_crawler.crawl` alone, and `to_crawl.md` — its entries and its marks — by a hand, in the file or through that module's TUI, its header read off the tree |
 | D18 | the crawler gates nothing: no target of the chain, no service and no merge depends on it; it writes only its skill matrix, its reports and its snapshot, and a hand alone runs it |
