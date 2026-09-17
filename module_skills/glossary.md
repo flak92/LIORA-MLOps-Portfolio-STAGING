@@ -293,8 +293,10 @@ timeframe slots, and paths are built only by the descriptors of
 once, by `is_artifact_set_complete()` beside them.
 
 The fifteen manifest files in `LC_COLLATE=C` listing order — the order
-`file_manifest()` in `module_ml/status.py` and the generated README share; the
-five a hand's stages write are listed with no size until they exist:
+`file_manifest()` in `module_ml/status.py` and the generated README share. A
+file of a hand's stage is listed, not measured — its size moves with the hand, not
+with the chain — so the five a hand's stages write (`HAND_STAGE_FILE_DESCRIPTORS`)
+stand in the README with no size, present or absent, as the README itself does:
 
 | file | written by | holds |
 |---|---|---|

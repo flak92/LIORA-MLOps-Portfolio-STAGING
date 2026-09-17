@@ -189,6 +189,13 @@ def asset_report(ticker: str, cat: dict, hyperparameter_search_result: dict, met
     }
 
 
+# the files of a hand's stage — drafted by a hand, written by the search a hand starts, or promoted by one. A file of a
+# hand's stage is listed, not measured: its size moves with the hand, not with the chain, and the README is promised
+# byte-reproducible by the chain alone
+HAND_STAGE_FILE_DESCRIPTORS = (config.barriers_json, config.coordinate_search_json, config.coordinate_search_profile_json,
+                               config.coordinate_search_trials_jsonl, config.feature_set_json)
+
+
 def file_manifest(ticker: str, cat: dict) -> list[tuple]:
     """The asset folder manifest in LC_COLLATE=C listing order: (path, what it holds) — one row per timeframe of the
     hierarchy for the catalogue parquets, which the slot standard sorts finest first, as LC_COLLATE=C does."""
@@ -196,7 +203,7 @@ def file_manifest(ticker: str, cat: dict) -> list[tuple]:
         (config.asset_readme_md(ticker), "this file"),
         (config.barriers_json(ticker), "the promoted barrier geometry: the two multipliers of a trade, the label's own and the horizon token — a hand's choice; absent, the frozen constants are the asset's"),
         (config.catalogue_json(ticker), "the feature layer's contract: the timeframes and their slots, the warm-up, the columns offered per timeframe and the default set — read once per stage"),
-        (config.coordinate_search_json(ticker), "the coordinate search: every scored state, the beam, the path it took, the champion and the proposals"),
+        (config.coordinate_search_json(ticker), "where the coordinate search stands at a round boundary: its inputs, the beam, the champion, the path it took and the proposals, each trial named by its index into the ledger"),
         (config.coordinate_search_profile_json(ticker), "the search profile: the columns admitted, the state to start from, each coordinate's grid and the loops of a round — drafted by a hand"),
         (config.coordinate_search_trials_jsonl(ticker), "the coordinate search's ledger: one scored state a line, appended and never rewritten"),
         (config.feature_set_json(ticker), "the promoted feature set: its columns per timeframe, a hand's choice — absent, the default set is the asset's"),
@@ -236,8 +243,9 @@ def asset_readme(ticker: str, cat: dict, hyperparameter_search_result: dict, met
 
     files = []
     for path, note in file_manifest(ticker, cat):
-        # this file's own size would be self-referential: writing it changes it
-        size = "—" if path == config.asset_readme_md(ticker) else load_file_size_text(path)
+        # this file's own size would be self-referential: writing it changes it; a hand's stage is listed, not measured
+        unmeasured = path == config.asset_readme_md(ticker) or path in {descriptor(ticker) for descriptor in HAND_STAGE_FILE_DESCRIPTORS}
+        size = "—" if unmeasured else load_file_size_text(path)
         files.append([f"`{path.name}`", note, size])
 
     cls_rows = [[f"F{k.split('_')[1]}", f"{metrics['validation'][k]['prior_logloss']:.6f}",

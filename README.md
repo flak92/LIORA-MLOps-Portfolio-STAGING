@@ -247,7 +247,9 @@ program that writes each writes the same bytes for the same decisions. The coord
 `<TICKER>_coordinate_search.json`, where the search stands at a round boundary, and
 `<TICKER>_coordinate_search_trials.jsonl`, its ledger of scored states — one a line, appended and never
 rewritten. Their proof is that two runs of one profile, and a run interrupted and resumed, give the same
-bytes in both. Both are tracked even so: `ml_status.json` and `<TICKER>_README.md` are inside the proof and
+bytes in both. `<TICKER>_README.md` lists every file of a hand's stage and measures none — listed, not
+measured, because its size moves with the hand and not with the chain — so a search leaves the README's bytes
+where the chain put them. Both are tracked even so: `ml_status.json` and `<TICKER>_README.md` are inside the proof and
 read them, so a clone without them could not reproduce the two files that quote them.
 
 Both sides run in containers from the same pins; `SEED`, `nthread=1`,
