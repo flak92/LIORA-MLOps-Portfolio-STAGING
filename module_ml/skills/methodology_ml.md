@@ -170,7 +170,12 @@ ledger — one scored state a line, appended, never rewritten, so writing a tria
 costs that trial and not the trials before it — and
 `<TICKER>_coordinate_search.json` is where the search stands at a round
 boundary, written at the top of each round and nowhere else, so its size does not
-grow with the search at all. The round's own work follows that one write, so the
+grow with the search at all. It names trials and holds none of their numbers: an
+entry of `path` is the round, the loop, the family, the move, the beam and the
+index of the trial it landed on, and a proposal is its rank and that index. Every
+reader — `ml-status`, the terminal, the promotion — reads a trial's columns, its
+geometry and every number measured on it off its line of the ledger, so a number
+stands in one file and two files cannot disagree about it. The round's own work follows that one write, so the
 one call leaves both the state a round starts from and the state the last round
 left, and the file exists before the ledger's first line: every line the ledger
 holds has a state that owns it. That is a guarantee of the order the loop is
@@ -469,7 +474,7 @@ point every study drew is one JSON object on one line of
 `store/trials/<TICKER>/<TICKER>_hyperparameter_search_trials.jsonl`, appended by
 `dataset.append_jsonl` and never rewritten — the technique the coordinate search's
 own ledger uses, and the whole of what a ledger needs. A line carries where it was
-drawn (`ml-hpo` or `coordinate_search`), the round when a loop drew it, the study's
+drawn — `hpo` for the stage, `coordinate_search` for the search's loop, the module that ran the study — the round when a loop drew it, the study's
 place in the file, the trial's place in the study, its state, the point the sampler
 drew and what the trial left. It carries **no run id, no timestamp and no host
 name**, which is the property that matters: two studies over an empty store leave

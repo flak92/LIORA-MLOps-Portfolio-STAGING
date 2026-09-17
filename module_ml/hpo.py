@@ -242,7 +242,7 @@ def main() -> int:
         }
         out = config.parameters_json(ticker)
         dataset.write_json(out, payload)
-        log_trials(ticker, study, "ml-hpo", None)
+        log_trials(ticker, study, "hpo", None)
         print(f"{ticker} {out.name}: {OBJECTIVE_KEY} {study.best_value:.6f} "
               f"(trial {study.best_trial.number})", flush=True)
     return 0

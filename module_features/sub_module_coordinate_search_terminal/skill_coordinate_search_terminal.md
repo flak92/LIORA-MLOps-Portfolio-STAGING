@@ -10,8 +10,9 @@ writes; how a screen is drawn is that skill's. One action per run: after it the 
 The asset is `ASSET=` on the make line and `--tickers` at the process boundary, like every stage — the terminal
 has no screen for choosing one, and refuses a run that names more than one, saying to narrow it. It reads
 `<TICKER>_catalogue.json` for the columns the search may admit, `<TICKER>_coordinate_search.json` for where
-the search stands — its beam, its champion, its path and its proposals — `<TICKER>_coordinate_search_trials.jsonl`
-for the trials themselves, and `<TICKER>_coordinate_search_profile.json` for what a hand last asked for. The
+the search stands — its beam, its champion, its path and its proposals, each naming a trial by its index —
+`<TICKER>_coordinate_search_trials.jsonl` for the trials themselves and every number the tables show, read off
+the line an index names, and `<TICKER>_coordinate_search_profile.json` for what a hand last asked for. The
 counts it shows per loop are `trial_count_by_loop` from the search file, read and not recomputed: the search
 adds its own lines and the points its studies drew, once, at a round boundary. It reads no
 snapshot: `ml_status.json` is only as fresh as the last `make ml-status`, and a search that started a minute
@@ -55,8 +56,10 @@ count; then the menu, `gum choose` headed *action*: draft, search, status, promo
   session already exists or has just begun.
 - **status** — the state table, the research path (each accepted expansion with its round, loop, family, trial
   and the path's CAGR, Calmar, drawdown and trade count) and the proposals (each with the coordinates it moves
-  and the same four numbers). The path and the proposals come from the state file, the trials and their counts
-  from the ledger. It writes nothing and ends on its last table; a table with no rows is a line
+  and the same four numbers). Which trials the path and the proposals hold comes from the state file; each
+  trial's columns, geometry and numbers from its line of the ledger, and the coordinates a proposal moves are
+  that line against the asset's own state the search recorded in its inputs; the counts per loop from the state
+  file. It writes nothing and ends on its last table; a table with no rows is a line
   instead — `no accepted move`, `no proposal`.
 - **promote** — the proposals as a list, then the plan with the coordinates that proposal moves and the
   `command` line verbatim, then the gate `promote proposal <n> and rerun the ML chain for <TICKER>?`. *promote*

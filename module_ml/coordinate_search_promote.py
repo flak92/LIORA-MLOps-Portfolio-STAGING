@@ -16,13 +16,14 @@ def main() -> int:
     for ticker in config.parse_tickers(args.tickers):
         cat = dataset.load_catalogue(ticker)
         timeframes = config.timeframes(cat)
-        # the proposals by their rank, so a rank the search result does not hold fails on the lookup itself
-        proposals = {row["proposal"]: row
-                     for row in dataset.load_json(config.coordinate_search_json(ticker))["proposals"]}
-        proposal = proposals[args.proposal]
-        columns_by_timeframe = {timeframe: list(proposal["columns_by_timeframe"][timeframe])
+        # the proposals by their rank, so a rank the search result does not hold fails on the lookup itself; a
+        # proposal names its trial, and the state it holds is that trial's line of the ledger
+        trial_index_by_rank = {row["proposal"]: row["trial_index"]
+                               for row in dataset.load_json(config.coordinate_search_json(ticker))["proposals"]}
+        trial = dataset.load_jsonl(config.coordinate_search_trials_jsonl(ticker))[trial_index_by_rank[args.proposal] - 1]
+        columns_by_timeframe = {timeframe: list(trial["columns_by_timeframe"][timeframe])
                                 for timeframe in timeframes}
-        barriers = {name: proposal[name] for name in config.BARRIER_COORDINATE_NAMES}
+        barriers = {name: trial[name] for name in config.BARRIER_COORDINATE_NAMES}
         active_columns = {timeframe: list(columns) for timeframe, columns
                           in dataset.load_feature_columns(ticker, cat).items()}
         active = dataset.load_barriers(ticker)

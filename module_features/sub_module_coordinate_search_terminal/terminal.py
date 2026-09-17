@@ -136,29 +136,32 @@ def _path_block_cells(block: dict) -> dict:
 
 
 def _proposal_rows(search: dict, trials: list[dict]) -> list[dict]:
+    """The proposals, each read off the ledger line its trial index names — the state file holds the rank and
+    the index, and no number of the trial."""
     return [{"#": proposal["proposal"], "trial": proposal["trial_index"],
-             "coordinates moved": _moved(proposal, trials),
-             **_path_block_cells(proposal["validation_path"])}
+             "coordinates moved": _moved(trials[proposal["trial_index"] - 1], search),
+             **_path_block_cells(trials[proposal["trial_index"] - 1]["validation_path"])}
             for proposal in search["proposals"]]
 
 
-def _path_rows(search: dict) -> list[dict]:
+def _path_rows(search: dict, trials: list[dict]) -> list[dict]:
     return [{"#": number, "round": entry["round"], "loop": entry["loop"], "family": entry["family"],
-             "trial": entry["trial_index"], **_path_block_cells(entry["validation_path"])}
+             "trial": entry["trial_index"], **_path_block_cells(trials[entry["trial_index"] - 1]["validation_path"])}
             for number, entry in enumerate(search["path"], start=1)]
 
 
-def _moved(proposal: dict, trials: list[dict]) -> str:
-    """What one proposal changes against the state the search started from — the columns it adds and drops, and
-    each barrier coordinate whose value is not that state's. A join, not a difference this terminal computes:
-    the columns come from the search's own two lists."""
-    start = trials[0]
-    columns = [f"+{name}_{timeframe}" for timeframe, names in sorted(proposal["added_columns_by_timeframe"].items())
-               for name in names]
-    columns += [f"-{name}_{timeframe}" for timeframe, names in sorted(proposal["removed_columns_by_timeframe"].items())
-                for name in names]
-    barriers = [f"{name} {proposal[name]}" for name in sorted(config.GRID_BY_COORDINATE_DEFAULT)
-                if proposal[name] != start[name]]
+def _moved(trial: dict, search: dict) -> str:
+    """What one trial changes against the asset's own state the search was run on, as its inputs record it — the
+    columns it holds that the state does not and the ones it drops, and each barrier coordinate whose value is not
+    the state's. Membership and equality on the two files' own values: no number is computed."""
+    active_columns, active_barriers = (search["inputs"]["active_columns_by_timeframe"],
+                                       search["inputs"]["active_barriers"])
+    columns = [f"+{name}_{timeframe}" for timeframe, names in sorted(trial["columns_by_timeframe"].items())
+               for name in names if name not in active_columns[timeframe]]
+    columns += [f"-{name}_{timeframe}" for timeframe, names in sorted(active_columns.items())
+                for name in names if name not in trial["columns_by_timeframe"][timeframe]]
+    barriers = [f"{name} {trial[name]}" for name in sorted(config.GRID_BY_COORDINATE_DEFAULT)
+                if trial[name] != active_barriers[name]]
     return " ".join(columns + barriers) or "—"
 
 
@@ -315,8 +318,8 @@ def _write_coordinate_search(ticker: str, profile: dict | None, search: dict | N
 def _recorded_search_tables(ticker: str, profile: dict | None, search: dict | None) -> int:
     """Read the recorded search: where it stands, the path it took and the states it proposes. Writes nothing.
 
-    Two files: the state file says where the search stands and what it proposes, the ledger holds the trials
-    and is what the counts are taken off."""
+    Two files: the state file says where the search stands and names the trials it took and proposes, the ledger
+    holds those trials and every number the tables show."""
     if search is None:
         return _failure_exit_code(f"{ticker} has no coordinate search",
                                   config.coordinate_search_json(ticker).name,
@@ -325,7 +328,7 @@ def _recorded_search_tables(ticker: str, profile: dict | None, search: dict | No
     tui.gum_table(("parameter", "value"), _state_rows(ticker, profile, search, trials))
     print()
     if search["path"]:
-        tui.gum_table(PATH_COLUMNS, _path_rows(search), PATH_COLUMNS_DROP_ORDER)
+        tui.gum_table(PATH_COLUMNS, _path_rows(search, trials), PATH_COLUMNS_DROP_ORDER)
     else:
         print("no accepted move")
     print()
@@ -356,7 +359,8 @@ def _write_promoted_proposal(ticker: str, profile: dict | None, search: dict | N
                   [{"parameter": "asset", "value": ticker},
                    {"parameter": "proposal", "value": f"{answer} of {len(search['proposals'])}"},
                    {"parameter": "trial", "value": proposal["trial_index"]},
-                   {"parameter": "coordinates moved", "value": _moved(proposal, trials)}])
+                   {"parameter": "coordinates moved",
+                    "value": _moved(trials[proposal["trial_index"] - 1], search)}])
     print(f"command         {shlex.join(('make', config.PROMOTE_TARGET, f'ASSET={ticker}', f'PROPOSAL={answer}'))}")
     print()
     decision = tui.gum_choose(f"promote proposal {answer} and rerun the ML chain for {ticker}?",

@@ -6,7 +6,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 
-from . import config, coordinate_search, dataset, hpo, strategy as strategy_module
+from . import config, coordinate_search, dataset, feature_set_search, hpo, strategy as strategy_module
 
 EQUITY_CURVE_DOWNSAMPLE_INTERVAL_DAYS = 7          # daily equity grid -> weekly points for the sparkline
 
@@ -92,25 +92,28 @@ def strategy_block(strategy: dict) -> dict:
     }
 
 
-def proposal_block(proposal: dict) -> dict:
-    """One proposal as the page reads it: the model's skill it was chosen on, then what the strategy would do."""
+def proposal_block(proposal: dict, trial: dict, active_columns_by_timeframe: dict, timeframes: tuple[str, ...]) -> dict:
+    """One proposal as the page reads it: its rank and trial from the state file, and everything else from that
+    trial's line of the ledger — the columns it moves against the state the search was run on, the model's skill,
+    then what the strategy would do."""
+    columns_by_timeframe = trial["columns_by_timeframe"]
     return {
         "proposal": proposal["proposal"],
         "trial_index": proposal["trial_index"],
-        "added_columns_by_timeframe": proposal["added_columns_by_timeframe"],
-        "removed_columns_by_timeframe": proposal["removed_columns_by_timeframe"],
-        "mean_relative_logloss_skill": round(proposal["mean_relative_logloss_skill"], 6),
+        "added_columns_by_timeframe": feature_set_search.columns_added(columns_by_timeframe, active_columns_by_timeframe, timeframes),
+        "removed_columns_by_timeframe": feature_set_search.columns_removed(columns_by_timeframe, active_columns_by_timeframe, timeframes),
+        "mean_relative_logloss_skill": round(trial["mean_relative_logloss_skill"], 6),
         "validation": {fold: {"relative_logloss_skill": round(block["relative_logloss_skill"], 6),
                               "sharpe": round(block["sharpe"], 3),
                               "cagr": round(block["cagr"], 6), "calmar": round(block["calmar"], 4),
                               "profit_factor": config.rounded(block["profit_factor"], 4),
                               "trade_count": block["trade_count"]}
-                       for fold, block in sorted(proposal["validation"].items())},
+                       for fold, block in sorted(trial["validation"].items())},
         "validation_path": {k: config.rounded(v, 6) if isinstance(v, float) or v is None else v
-                            for k, v in sorted(proposal["validation_path"].items())},
-        "entry_edge_threshold": proposal["entry_edge_threshold"],
-        "entry_edge_threshold_constraint_met": proposal["entry_edge_threshold_constraint_met"],
-        strategy_module.SELECTION_SCORE_KEY: config.rounded(proposal[strategy_module.SELECTION_SCORE_KEY], 6),
+                            for k, v in sorted(trial["validation_path"].items())},
+        "entry_edge_threshold": trial["entry_edge_threshold"],
+        "entry_edge_threshold_constraint_met": trial["entry_edge_threshold_constraint_met"],
+        strategy_module.SELECTION_SCORE_KEY: config.rounded(trial[strategy_module.SELECTION_SCORE_KEY], 6),
     }
 
 
@@ -133,9 +136,9 @@ def coordinate_search_block(ticker: str, best_params: dict, active_columns_by_ti
         return None
     search = dataset.load_json(path)
     ledger = config.coordinate_search_trials_jsonl(ticker)
-    # the trials are the ledger's lines; how many points each loop put through a fit is the search's own
-    # number, written once at a round boundary and copied here — the page, the terminal and the state file
-    # show one number because one of them computed it
+    # the trials are the ledger's lines, and a proposal is read off the line its index names; how many points
+    # each loop put through a fit is the search's own number, written once at a round boundary and copied
+    # here — the page, the terminal and the state file show one number because one of them computed it
     trials = dataset.load_jsonl(ledger) if ledger.exists() else []
     inputs_current = profile_path.exists() and search["inputs"] == dataset.to_json_safe(
         coordinate_search.build_search_inputs(best_params, active_columns_by_timeframe, active_barriers,
@@ -149,7 +152,9 @@ def coordinate_search_block(ticker: str, best_params: dict, active_columns_by_ti
         "inputs_current": inputs_current,
         # a search whose inputs have gone describes another experiment, and its proposals are numbers of
         # that one: the page shows none of them, and the snapshot publishes none either
-        "proposals": [proposal_block(proposal) for proposal in search["proposals"]] if inputs_current else [],
+        "proposals": [proposal_block(proposal, trials[proposal["trial_index"] - 1],
+                                     search["inputs"]["active_columns_by_timeframe"], config.timeframes(cat))
+                      for proposal in search["proposals"]] if inputs_current else [],
     }
 
 

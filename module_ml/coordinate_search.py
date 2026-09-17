@@ -176,13 +176,11 @@ def top_beam(children: list[int], trials: list[dict], timeframes: tuple[str, ...
 # ---- the state file ------------------------------------------------------------------------------------
 
 def path_entry(trials: list[dict], round_number: int, loop: str, family: str, beam: list[int]) -> dict:
-    """One accepted expansion of the research path: which loop and family moved the search, where it landed
-    and what the beam held after it."""
-    row = trials[beam[0] - 1]
+    """One accepted expansion of the research path: which loop and family moved the search, the trial it
+    landed on and what the beam held after it. The trial is named by its index and nothing of it is copied:
+    its skill and its path are the ledger's line, and a reader reads them there."""
     return {"round": round_number, "loop": loop, "family": family,
-            "trial_index": beam[0], "beam": list(beam), "move": row["move"],
-            "mean_relative_logloss_skill": row["mean_relative_logloss_skill"],
-            "validation_path": row["validation_path"]}
+            "trial_index": beam[0], "beam": list(beam), "move": trials[beam[0] - 1]["move"]}
 
 
 def proposals_block(trials: list[dict], active_state: dict, champion_trial_index: int,
@@ -190,7 +188,10 @@ def proposals_block(trials: list[dict], active_state: dict, champion_trial_index
     """The states a hand may promote: the champion the search accepted first, then the trials no validation
     fold scores below the state the search started from, by the ranking key. A state worse on any fold is
     never proposed, and neither is one whose threshold fell back to the grid floor — a fallback row wears
-    the numbers of a threshold nothing qualified for, and against a baseline that lost it could rank."""
+    the numbers of a threshold nothing qualified for, and against a baseline that lost it could rank.
+
+    A proposal is its rank and the index of its trial, and nothing else: the columns, the geometry and every
+    number are the ledger's line, so each stands in one file and a reader joins it by the index."""
     active_key = state_key(active_state)
     qualifiers = [(index, row) for index, row in enumerate(trials, start=1)
                   if row["entry_edge_threshold_constraint_met"]
@@ -199,22 +200,8 @@ def proposals_block(trials: list[dict], active_state: dict, champion_trial_index
     # the champion first — the state the search itself accepted, move by move — then the rest by the key
     ranked = sorted(qualifiers, key=lambda item: (item[0] != champion_trial_index,
                                                   *ranking_key(trials, item[0], timeframes)))
-    active = active_state["columns_by_timeframe"]
-    return [{
-        "proposal": rank,
-        "trial_index": index,
-        "loop": row["loop"],
-        "columns_by_timeframe": row["columns_by_timeframe"],
-        "added_columns_by_timeframe": feature_set_search.columns_added(row["columns_by_timeframe"], active, timeframes),
-        "removed_columns_by_timeframe": feature_set_search.columns_removed(row["columns_by_timeframe"], active, timeframes),
-        **{name: row[name] for name in config.BARRIER_COORDINATE_NAMES},
-        "mean_relative_logloss_skill": row["mean_relative_logloss_skill"],
-        "validation": row["validation"],
-        "validation_path": row["validation_path"],
-        "entry_edge_threshold": row["entry_edge_threshold"],
-        "entry_edge_threshold_constraint_met": row["entry_edge_threshold_constraint_met"],
-        strategy.SELECTION_SCORE_KEY: row[strategy.SELECTION_SCORE_KEY],
-    } for rank, (index, row) in enumerate(ranked[:config.COORDINATE_SEARCH_PROPOSAL_COUNT], start=1)]
+    return [{"proposal": rank, "trial_index": index}
+            for rank, (index, _) in enumerate(ranked[:config.COORDINATE_SEARCH_PROPOSAL_COUNT], start=1)]
 
 
 def write_round_state(ticker: str, state_file: dict, trials: list[dict], active_state: dict,
@@ -224,9 +211,10 @@ def write_round_state(ticker: str, state_file: dict, trials: list[dict], active_
     Written at the top of a round, so it exists before the ledger's first line and every line the ledger
     holds has, on disk, the experiment it belongs to; the write that records a finished search is this same
     write one iteration later. The trials are the ledger beside it, appended a line at a time, so the state
-    is a fixed handful of keys and the proposals are derived once a round rather than once a trial. That is
-    what makes the search's own record grow with what it gains: the ledger by one line, this file not at
-    all."""
+    is a fixed handful of keys and the proposals are derived once a round rather than once a trial. The path
+    and the proposals name their trials by index and copy none of their numbers, so what the file holds
+    beside its inputs is a few hundred bytes however long the search runs. That is what makes the search's
+    own record grow with what it gains: the ledger by one line, this file not at all."""
     state_file["proposals"] = proposals_block(trials, active_state, state_file["champion_trial_index"] or 1, timeframes)
     dataset.write_json(config.coordinate_search_json(ticker), state_file)
 
