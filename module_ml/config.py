@@ -119,13 +119,15 @@ VALIDATION_FOLD_IDS = (2, 3, 4)
 FINAL_HOLDOUT_FOLD_ID = 5           # F5 — evaluated, never selected on
 
 # ---- HPO (Optuna TPE, sequential, in-memory)
-# the counts the research runs at, chosen when the method was frozen and not before. TPE draws at random until it has
-# HYPERPARAMETER_SEARCH_STARTUP_TRIAL_COUNT trials to fit on — completed and pruned alike, in this Optuna — and models
-# from the next one, so a trial count at or below the startup count is a random search wearing the sampler's name. The
-# startup count is written here rather than left to the library: a number that decides how the experiment searches is
-# the experiment's, and a default that moves with a version bump is not a frozen method
-HYPERPARAMETER_SEARCH_STARTUP_TRIAL_COUNT = 10
-HYPERPARAMETER_SEARCH_TRIAL_COUNT = 20
+# activation values, not calibration — held until the method is calibrated; the 16-core machine and a recomputed
+# feature layer are a new experiment. They are the smallest counts at which every part of the method runs: TPE draws at
+# random until it has HYPERPARAMETER_SEARCH_STARTUP_TRIAL_COUNT trials to fit on — completed and pruned alike, in this
+# Optuna — and models from the next one, so trials 6 to 8 of every study are the sampler's own, and a trial count at or
+# below the startup count would be a random search wearing its name. The startup count is written here rather than left
+# to the library: a number that decides how the experiment searches is the experiment's, and a default that moves with a
+# version bump is not a frozen method
+HYPERPARAMETER_SEARCH_STARTUP_TRIAL_COUNT = 5
+HYPERPARAMETER_SEARCH_TRIAL_COUNT = 8
 HYPERPARAMETER_SEARCH_SPACE = {
     "max_depth": ("int", 2, 6),
     "eta": ("log", 0.01, 0.3),

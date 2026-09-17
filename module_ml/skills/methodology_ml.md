@@ -446,20 +446,28 @@ model, call the same fold out-of-sample again.
 
 ## 7. Hyper-parameter search
 
-Optuna TPE (`seed = 42`), 20 sequential trials, in-memory study. The objective is
+Optuna TPE (`seed = 42`), 8 sequential trials, in-memory study. The objective is
 the quantity the search selects on: the CAGR of the validation path at the
 threshold § 9's rule would pick, maximised.
 
-**Ten of the twenty are the sampler's random start.** TPE fits its two densities
+**Five of the eight are the sampler's random start.** TPE fits its two densities
 only once it holds `n_startup_trials` trials — completed and pruned alike, in
-this Optuna — and draws at random until then, so a study of ten trials or fewer
+this Optuna — and draws at random until then, so a study of five trials or fewer
 is a random search under the sampler's name and reports as a TPE one. The startup
-count is `HYPERPARAMETER_SEARCH_STARTUP_TRIAL_COUNT = 10`, written in
+count is `HYPERPARAMETER_SEARCH_STARTUP_TRIAL_COUNT = 5`, written in
 `config.py` rather than inherited from the library: a number that decides how the
 experiment searches is the experiment's, and a default that moves with a version
-bump is not a frozen method. The modelled trials are the ones past the startup count. Both counts were
-chosen when the method was frozen; before that the file carried three trials and
-said so.
+bump is not a frozen method. The modelled trials are the ones past the startup
+count — trials 6, 7 and 8 of every study, by construction and not by luck.
+
+**Five and eight are activation values, not calibration.** They are the smallest
+counts at which every part of the method runs on every study: the sampler models,
+the gate is evaluated fold by fold and its counts are written, and the loop's
+choice of the best admissible point has more than one point to choose among. They
+say nothing about how many trials the research needs, and they are held until the
+method is calibrated; a count that would be, measured on the 16-core machine
+against a recomputed feature layer, is a new experiment and a new hash in § 12. Before
+them the file carried twenty and ten, and before those three.
 
 **The sampler's remaining internals are Optuna's, and are pinned as such.** The
 quantile that splits good from bad, the number of candidates the acquisition
@@ -553,8 +561,11 @@ growth rate, read fold by fold and never jointly. Two bounds, each true of *some
 threshold, say nothing about *one* threshold admissible on every fold — and one
 threshold is what the state gate needs. The set is that quantity, so the gate now
 stops a trial exactly when it can no longer produce a child the search would keep.
-Measured on a full search at the new gate: 80 of 80 points stopped, 74 of them after
-the first validation fold, against champions whose fold Calmar stood at +5.68.
+Measured on a full search at the new gate, at twenty trials a study: 80 of 80 points
+stopped, 74 of them after the first validation fold, against champions whose fold
+Calmar stood at +5.68. At the activation counts, on the parameters `ml-hpo` then
+chose: 8 of 8 stopped in the one study the search ran — 2 after F2, 5 after F3 and 1
+after F4 — against a champion at +0.94, +0.79 and −0.53.
 
 A correction belongs here, because it was published the other way round. An earlier
 measurement reported that the old gates pruned **none** of 76 points. That reading
@@ -834,14 +845,19 @@ differentiation, fixed costs, unit position sizing. The class distribution is
 dominated by `y = 0` (the 2×ATR barrier is rarely touched within one 4H
 block) — reported per asset, not resampled.
 
-**One fold can make the search stand still, and on this asset it does.** The state
-gate keeps a move only where it is better on **every** validation fold. BTC's
-champion stands at a fold Calmar of **+5.68** on F2 with F3 and F4 both negative, so
-a move must beat +5.68 and the two negatives at one threshold. Measured: the
-hyper-parameter loop drew 80 points across four studies and every one was stopped —
-74 after the first fold — and the whole search accepted a single move, `barrier/trade`
-in round 1, before converging. The conjunction over folds and one extreme fold
-together make a search that is nearly motionless.
+**The conjunction over folds can make the search stand still, and on this asset it
+does.** The state gate keeps a move only where it is better on **every** validation
+fold. Measured twice. At twenty trials a study, BTC's champion stood at a fold Calmar
+of **+5.68** on F2 with F3 and F4 both negative, so a move had to beat +5.68 and the two
+negatives at one threshold: the hyper-parameter loop drew 80 points across four
+studies and every one was stopped — 74 after the first fold — and the whole search
+accepted a single move, `barrier/trade` in round 1, before converging. At the
+activation counts of § 7 the parameters `ml-hpo` chose moved the start state to
+**+0.94, +0.79 and −0.53**, no extreme fold at all, and the search accepted **no**
+move: 31 scored states in one round, the one study's 8 points all stopped, no family
+of the five keeping a child, no state no worse than the start on every fold and so no
+proposal. A search that cannot beat its start on all three years at once, with one
+fold extreme or with none, is nearly motionless.
 
 That is a property of this geometry, written down and not solved here. Whether the
 answer is a different fold measure, a tolerance, or a champion that is not the beam
@@ -857,9 +873,12 @@ evidence that the machine is right, not findings about the market, and nothing i
 them is to be read as one. The palette of features and the compute the search is
 given are the next thing to grow, on a larger machine and with the cores opened
 up; the artifacts worth keeping are made there, once the machine is right. That
-is why a count like § 7's twenty is chosen for what makes the method honest and
-not for what makes a run short: the run's length is not the constraint this phase
-is under.
+is why § 7's counts are activation values and say so: five and eight are large
+enough that the sampler models and every gate is evaluated on every study — the
+method runs whole, which is what this phase has to show — and they are not a
+choice of how much searching the research needs. That choice is calibration, made
+on the larger machine as a new experiment, where a run's length is not the
+constraint either.
 
 ## 13. References (DOIs resolve)
 
