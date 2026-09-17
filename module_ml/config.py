@@ -266,6 +266,7 @@ def strategy_evaluation_json(ticker):
     return artifact_dir(ticker) / f"{ticker}_strategy_evaluation.json"
 
 
+# twice by extraction
 def coordinate_search_json(ticker):
     """Where the search stood when a round began: what it was conditioned on, its beam, its champion, the
     path it took and the states it proposes. Written at the top of a round, so it is on disk before the
@@ -273,6 +274,7 @@ def coordinate_search_json(ticker):
     return artifact_dir(ticker) / f"{ticker}_coordinate_search.json"
 
 
+# twice by extraction
 def coordinate_search_trials_jsonl(ticker):
     """Every scored state of the search, one JSON object a line, appended and never rewritten. A line's
     number, counted from one, is the trial's index — what `champion_trial_index`, `beam`, `parent_trial_index`
@@ -281,6 +283,7 @@ def coordinate_search_trials_jsonl(ticker):
     return artifact_dir(ticker) / f"{ticker}_coordinate_search_trials.jsonl"
 
 
+# twice by extraction
 def coordinate_search_profile_json(ticker):
     """What a hand asks the search to look at: the columns admitted, the state to start from, the grid of
     each coordinate and the loops of a round. Drafted, never derived."""
