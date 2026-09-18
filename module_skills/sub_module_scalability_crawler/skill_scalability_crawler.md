@@ -40,8 +40,8 @@ destination, and a report says where one file stands from it.
 - **The vendors** are `vendors_for_crawling.toml`, kept by hand (§ Vendors).
 - **The message** for a file is the mission, then `# Rules` with every document
   `SENT_DOCUMENT_PATHS` finds — `AGENTS.md`, `module_skills/glossary.md` and the
-  orientation of the module the file's first path segment names, of which a root
-  file, or one under `module_skills/`, has none — then `# Skills marked for this
+  orientation of the module the file's first path segment names — a root file has
+  none, and a file of the canon's own repository takes `module_skills/README_module_skills.md` — then `# Skills marked for this
   file` with each skill its row marks, in the columns' order, each under its path,
   then `# Skills not marked for this file`, every other skill by its path alone,
   then `# File under review: <path>` and the file, each line after its number. It
@@ -220,7 +220,7 @@ The tables, with the columns a narrow terminal leaves out first:
   the command line through `build_command()`, the timeout from
   `config.AGENT_TIMEOUT_MINUTES`.
 - **Without the Makefile** the help is read as
-  `STORE_STATUS_DIR=store/status python3 -B -m module_skills.sub_module_scalability_crawler.crawl -h`.
+  `STORE_STATUS_DIR=../store_status python3 -B -m module_skills.sub_module_scalability_crawler.crawl -h`.
 
 ## The actuality
 
@@ -235,13 +235,13 @@ table and adds each file's age against the browser's clock.
 ## Design rationale
 
 Why each object sits where it does — the answers of
-`skill_self_explaining_naming.md` § The naming review; the canon has no
-orientation of its own, so its sub-module argues here (`AGENTS.md` § Pre-AWS
-architectural direction).
+`skill_self_explaining_naming.md` § The naming review; the module argues its
+objects in `README_module_skills.md` § Design rationale, and its sub-module argues
+its own files here (`AGENTS.md` § Pre-AWS architectural direction).
 
 | object | why here | why beside these | why this boundary | answers to |
 |---|---|---|---|---|
-| `__init__.py` | The package that makes `crawl` and `status` commands of `python3 -m`. | It imports nothing; `module_skills/` stays a folder of documents. | The commands run from the checkout's root. | no row — a reading of the tree that travels with the canon |
+| `__init__.py` | The package that makes `crawl` and `status` commands of `python3 -m`. | It imports nothing, so a command of this sub-module runs without the module's own stages. | The commands run from the checkout's root. | no row — a reading of the tree that travels with the canon |
 | `README_sub_module_scalability_crawler.md` | The front door: the commands, the three files kept by hand and the loop. | Beside the files it names; the rules stay in this skill and the standards of the screens in `module_skills/skill_tui_designer.md`, which it cites. | It restates no rule and decides nothing. | no row — a reading of the tree that travels with the canon |
 | `config.py` | The one surface of configuration (its docstring). | `crawl.py`, `status.py` and `tui.py` import it; `STORE_STATUS_DIR` comes from the environment, as in every `config.py`, and `OUTPUT_PLAIN` from `NO_COLOR`, `TERM` and whether standard output is a terminal; the sub-module's own files are read from `SUB_MODULE_DIR`, a listed path, a document and a skill from `REPO_ROOT`. | A document sent with every file is one line of `SENT_DOCUMENT_PATHS`, a family of skills one pattern of `SKILL_PATHS`, and which skill acts on a file's crawl a mark of `to_crawl.md`, never a line here; a vendor is a table of `vendors_for_crawling.toml`; plain output is the environment's, never a flag. | no row — a reading of the tree that travels with the canon |
 | `crawl.py` | The TUI's screens and the crawl (its docstring). | It imports `config.py`, `status.py` and `tui.py`, reads the active vendors through `load_active_vendors()`, builds the agent's command line through `build_command()`, runs git twice — the paths an add offers, the commit a report entry names — and that command line over `subprocess`, and draws every screen through `tui.py`. | It writes the reports, the skill matrix through `write_skill_matrix()` and, through `status.py`, the snapshot — nothing else; `-h`, `--help` is its one argument. | no row — a reading of the tree that travels with the canon |

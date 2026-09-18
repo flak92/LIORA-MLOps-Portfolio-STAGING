@@ -82,7 +82,6 @@ RESEARCH_END_MS = to_utc_ms(RESEARCH_END_UTC)
 # ---- label contract: triple barrier resolved on the 1m path
 # where each barrier coordinate stands until a promotion writes another: the geometry the chain falls back to
 # in dataset.load_barriers(), and the point the terminal pins an unsearched coordinate at
-# twice by extraction
 START_BY_COORDINATE_DEFAULT = {
     "atr_barrier_multiplier": 2.0,
     "label_horizon": "4h",
@@ -168,7 +167,7 @@ COORDINATE_SEARCH_LOOP_BARRIER = "barrier"
 COORDINATE_SEARCH_LOOP_FEATURE_SET = "feature_set"
 COORDINATE_SEARCH_LOOP_HPO = "hpo"
 # a round, written out: every expansion it makes, in the order it makes them. The search reads this table and
-# has no schedule of its own — a coordinate is added by a line here, a module in MOVE_GENERATORS and a grid in
+# has no schedule of its own — a coordinate is added by a line here, a module in LOOP_MODULES and a grid in
 # the profile, and a profile searches the loops it names and skips the rest
 ROUND_SCHEDULE = ((COORDINATE_SEARCH_LOOP_BARRIER, "trade"),
                   (COORDINATE_SEARCH_LOOP_BARRIER, "label"),
@@ -266,7 +265,6 @@ def strategy_evaluation_json(ticker):
     return artifact_dir(ticker) / f"{ticker}_strategy_evaluation.json"
 
 
-# twice by extraction
 def coordinate_search_json(ticker):
     """Where the search stood when a round began: what it was conditioned on, its beam, its champion, the
     path it took and the states it proposes. Written at the top of a round, so it is on disk before the
@@ -274,7 +272,6 @@ def coordinate_search_json(ticker):
     return artifact_dir(ticker) / f"{ticker}_coordinate_search.json"
 
 
-# twice by extraction
 def coordinate_search_trials_jsonl(ticker):
     """Every scored state of the search, one JSON object a line, appended and never rewritten. A line's
     number, counted from one, is the trial's index — what `champion_trial_index`, `beam`, `parent_trial_index`
@@ -283,7 +280,6 @@ def coordinate_search_trials_jsonl(ticker):
     return artifact_dir(ticker) / f"{ticker}_coordinate_search_trials.jsonl"
 
 
-# twice by extraction
 def coordinate_search_profile_json(ticker):
     """What a hand asks the search to look at: the columns admitted, the state to start from, the grid of
     each coordinate and the loops of a round. Drafted, never derived."""

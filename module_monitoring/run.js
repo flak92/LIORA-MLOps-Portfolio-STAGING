@@ -81,13 +81,13 @@ function renderRun(record) {
 }
 
 function fetchRunRecord(runId) {
-  return fetch("runs/" + runId, { cache: "no-store" })
+  return fetch("/runs/" + runId, { cache: "no-store" })
     .then((response) => { if (!response.ok) throw new Error("HTTP " + response.status); return response.json(); });
 }
 
 function initRun() {
   const meta = document.getElementById("run-meta");
-  fetch("runs", { cache: "no-store" })
+  fetch("/runs", { cache: "no-store" })
     .then((response) => { if (!response.ok) throw new Error("HTTP " + response.status); return response.json(); })
     .then((runs) => {
       if (!runs.run_ids.length) {

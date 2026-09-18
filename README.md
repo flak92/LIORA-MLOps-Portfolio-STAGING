@@ -61,7 +61,7 @@ Assets*; a hand promotes one — one asset at a time — and the chain reruns:
 make ml-coordinate-search-promote ASSET=BTC PROPOSAL=1   # copy proposal 1 into BTC_feature_set.json and BTC_barriers.json, then ml-all for BTC
 ```
 
-The canon's crawler, outside the chain, by hand in a terminal (`module_skills/skill_scalability_crawler.md`):
+The canon's crawler, outside the chain, by hand in a terminal (`module_skills/sub_module_scalability_crawler/skill_scalability_crawler.md`):
 
 ```bash
 make skills-crawl     # the TUI in gum: the listed paths and the skill matrix, then one action — crawl (vendor, model, effort, permissions, files, then the plan — each first option, every file and crawl preselected), add a path (its skills chosen, previewed), mark skills (the changes shown) or remove a path (confirmed) — then it closes; Esc writes nothing
@@ -210,9 +210,9 @@ file in a store instead (`AGENTS.md` § Architecture shape).
 `AGENTS.md` and `module_skills/` are the canon: the contract, the naming register
 and the rules that cross modules, and the one sub-module that reads each listed file
 against the skills a hand marks for it — `make skills-crawl` opens the crawler's TUI, where a hand chooses one action — crawl, which sends the files it chooses from the skill matrix to an agent after the plan, each with the skills its row marks, and appends each answer to that file's report; add a path with its skills; mark a path's skills; or remove a path — and
-`make skills-status` dates the reports in `store/status/skills_status.json`; it gates nothing (`module_skills/skill_scalability_crawler.md`). How any of this tree's terminals draws a screen is the canon's too,
-`module_skills/skill_tui_designer.md`, because two sub-modules now draw one: the crawler and
-`make features-coordinate-search-terminal`, the feature layer's instrument over the coordinate search. A module's own rules live under that module, in
+`make skills-status` dates the reports in `store/status/skills_status.json`; it gates nothing (`module_skills/sub_module_scalability_crawler/skill_scalability_crawler.md`). How any of this tree's terminals draws a screen is the canon's too,
+`module_skills/skill_tui_designer.md`, because every module now draws one: `make <module>-terminal`
+opens that module's terminal over its own stages, and the crawler draws its own. A module's own rules live under that module, in
 `module_<domain>/skills/`, and the index `module_skills/README.md` links to all of
 them. Each rule is written exactly once, where it is owned, and no document
 restates another (`AGENTS.md` § The default choice).
@@ -307,9 +307,7 @@ file, and the strategy host that is absent; `AGENTS.md` § Skills absent here,
 described lists the skills those seats imply, each with its owner, what it
 would govern and the one condition under which it is written. Four local skills
 carry one seat paragraph each, naming the primitive their object answers to and
-citing that skill for the rest. Whether each seat is the cheapest that keeps its
-boundary — what could be less, and whether it is — is
-[REPORT_pre_aws_minimalism.md](REPORT_pre_aws_minimalism.md).
+citing that skill for the rest.
 
 ## Data formats
 

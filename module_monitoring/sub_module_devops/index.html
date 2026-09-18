@@ -39,7 +39,7 @@
     <thead></thead>
     <tbody></tbody>
   </table>
-  <p class="foot">each service runs the one image, <code>liora-1m-pipeline</code>, and mounts the stores it touches at <code>/store/&lt;content&gt;</code>,
+  <p class="foot">each service runs its module's image, <code>liora-module-&lt;domain&gt;</code>, and mounts the stores it touches at <code>/store/&lt;content&gt;</code>,
     read-only where it only reads; the docker socket is mounted into <code>devops</code> and into no other container.</p>
 
   <h2>image</h2>

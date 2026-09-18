@@ -3,7 +3,7 @@
 Two runs of the same experiment produce the same bits — otherwise
 out-of-sample results lose their evidential value. The claim is scoped: bit
 parity for the same code, the same fixed input window and the same execution
-environment; five direct pins do not claim byte-identical environment
+environment; the four library pins do not claim byte-identical environment
 reconstruction at an arbitrary future date. *The repository shows the destination, not the road*: bit parity is the proof; no test suite stands in for it.
 
 - Thread caps are frozen at one: `nthread=1` (XGBoost), `OMP_NUM_THREADS=1`.

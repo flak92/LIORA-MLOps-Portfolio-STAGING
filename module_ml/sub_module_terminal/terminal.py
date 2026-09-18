@@ -1,15 +1,16 @@
-"""The coordinate search's text-based user interface (TUI): the asset's profile and the search recorded for it,
-then one action a hand chooses in the menu — draft the profile, start the search detached, read its tables, or
+"""The ML terminal — the ML module's text-based user interface (TUI): each asset's artifacts and the search recorded
+for it, then one action a hand chooses in the menu — a stage of the chain started through `make` (labels, hpo, train,
+strategy, status), or one of the coordinate search's own: draft the profile, start the search, read its tables, or
 promote a proposal — its forms and its result, drawn by tui.py to module_skills/skill_tui_designer.md; then it
 closes.
 
-It computes nothing: it reads the feature layer's contract and the ML layer's search state as JSON, writes the
-one file `<TICKER>_coordinate_search_profile.json`, and starts every stage through `make` — the Makefile is
-where a container, a tmux session and the order of the chain are named.
+It computes nothing: it reads the feature layer's contract and this module's own artifacts and search state as
+JSON, writes the one file `<TICKER>_coordinate_search_profile.json`, and starts every stage through `make` — the
+Makefile is where a container, a tmux session and the order of the chain are named.
 
 keys:
   Enter takes the option under the cursor; x toggles a column, a coordinate or a loop; Esc cancels and writes
-  nothing (exit 0); Ctrl-C ends the TUI (exit 130), and a search already started in its session stays.
+  nothing (exit 0); Ctrl-C ends the TUI (exit 130), and a stage or a search already started stays.
 
 output is plain — state words in brackets, no colour, no symbol, no border — when NO_COLOR is set and not empty,
 TERM is dumb or standard output is not a terminal; the words, the order and the counts are the same in both.
@@ -19,9 +20,9 @@ exit codes:
   argument; 130 Ctrl-C
 
 examples:
-  make features-coordinate-search-terminal               the TUI for the basket's one asset
-  make features-coordinate-search-terminal ASSET=BTC     the TUI for one asset of a wider basket
-  NO_COLOR=1 make features-coordinate-search-terminal    the TUI in plain output
+  make ml-terminal                  the TUI over the basket (at the workspace) or over ASSET (in this repository)
+  make ml-terminal ASSET=BTC        the TUI over one asset
+  NO_COLOR=1 make ml-terminal       the TUI in plain output
 """
 
 from __future__ import annotations
@@ -33,13 +34,18 @@ import subprocess
 import sys
 
 from . import config, tui
+from .. import config as ml_config
 
 DRAFT_STEPS = ["action", "columns to admit", "start state", "coordinates to search", "loops", "plan"]
 PROMOTE_STEPS = ["action", "proposal", "plan"]
+STATE_COLUMNS = ("asset", "catalogue", "labels", "parameters", "model", "strategy", "profile", "trials")
+STATE_COLUMNS_DROP_ORDER = ("trials", "profile", "strategy", "model", "parameters", "labels")
 PROPOSAL_COLUMNS = ("#", "trial", "coordinates moved", "path CAGR", "path Calmar", "path maxDD", "trades")
 PROPOSAL_COLUMNS_DROP_ORDER = ("path maxDD", "trades", "path Calmar", "coordinates moved")
 PATH_COLUMNS = ("#", "round", "loop", "family", "trial", "path CAGR", "path Calmar", "path maxDD", "trades")
 PATH_COLUMNS_DROP_ORDER = ("trades", "path maxDD", "path Calmar", "family")
+SEARCH_SESSIONS = ({"session": "detached", "target": config.SEARCH_DETACHED_TARGET},
+                   {"session": "foreground", "target": config.SEARCH_TARGET})
 
 
 # ---- the screens' own rows ------------------------------------------------------------------------------
@@ -97,10 +103,42 @@ def _profile_state(profile: dict | None, search: dict | None) -> str:
     return "matches the search" if search["inputs"]["profile"] == profile else "differs from the search"
 
 
+def _asset_files(ticker: str) -> tuple[dict | None, dict | None, dict | None]:
+    """The three files of one asset this terminal reads as objects — the contract, the profile and the search — each
+    None where the file is not there."""
+    catalogue_path = ml_config.catalogue_json(ticker)
+    profile_path, search_path = ml_config.coordinate_search_profile_json(ticker), ml_config.coordinate_search_json(ticker)
+    return (config.load_json(catalogue_path) if catalogue_path.exists() else None,
+            config.load_json(profile_path) if profile_path.exists() else None,
+            config.load_json(search_path) if search_path.exists() else None)
+
+
 def _trial_rows(ticker: str) -> list[dict]:
     """The search's ledger, line by line — the trials, where the state file holds where the search stands."""
-    ledger = config.coordinate_search_trials_jsonl(ticker)
+    ledger = ml_config.coordinate_search_trials_jsonl(ticker)
     return config.load_jsonl(ledger) if ledger.exists() else []
+
+
+def _present(path) -> str:
+    return "yes" if path.exists() else "no"
+
+
+def _asset_rows(tickers: list[str]) -> list[dict]:
+    """One row per asset — which of its files stand, where its profile stands and how many trials its ledger holds;
+    every cell a value as it stands, `—` where a file that would name it is not there."""
+    rows = []
+    for ticker in tickers:
+        catalogue, profile, search = _asset_files(ticker)
+        trials = _trial_rows(ticker)
+        rows.append({"asset": ticker,
+                     "catalogue": "yes" if catalogue else "no",
+                     "labels": _present(ml_config.label_events_parquet(ticker, catalogue)) if catalogue else "—",
+                     "parameters": _present(ml_config.parameters_json(ticker)),
+                     "model": _present(ml_config.model_evaluation_json(ticker)),
+                     "strategy": _present(ml_config.strategy_evaluation_json(ticker)),
+                     "profile": _profile_state(profile, search),
+                     "trials": len(trials) if trials else "—"})
+    return rows
 
 
 def _state_rows(ticker: str, profile: dict | None, search: dict | None,
@@ -167,17 +205,43 @@ def _moved(trial: dict, search: dict) -> str:
 
 # ---- the actions ----------------------------------------------------------------------------------------
 
+def _write_stage(ticker: str, stage: str) -> int:
+    """One stage of this module's chain for one asset, started through make after the plan and its gate."""
+    target = f"{config.MODULE_TOKEN}-{stage}"
+    tui.gum_table(("parameter", "value"), [
+        {"parameter": "asset", "value": ticker},
+        {"parameter": "stage", "value": stage},
+        {"parameter": "writes", "value": config.WRITES_BY_STAGE[stage].replace("<TICKER>", ticker)}])
+    print(f"command         {shlex.join(('make', target, f'ASSET={ticker}'))}")
+    print()
+    decision = tui.gum_choose(f"{stage} {ticker}?", _option_rows(stage, "cancel"), "option")
+    if decision != stage:
+        return _cancelled_exit_code()
+    print()
+    code = _make(target, f"ASSET={ticker}")
+    print()
+    if code:
+        return _failure_exit_code(f"{target} of {ticker} ended with exit {code}",
+                                  shlex.join(("make", target, f"ASSET={ticker}")), f"make exited with {code}",
+                                  "read make's lines above")
+    tui.gum_style([f"{tui.state_label('DONE')}  {target} of {ticker} done"], "DONE")
+    return 0
+
+
 def _pinned_point(profile: dict | None, name: str):
     """Where an unsearched coordinate is pinned: the point the profile already stands on — the first of the
     grid it holds — or the experiment's frozen geometry when a hand is drafting the first profile."""
     grid = (profile or {}).get("grid_by_coordinate", {}).get(name)
-    return grid[0] if grid else config.START_BY_COORDINATE_DEFAULT[name]
+    return grid[0] if grid else ml_config.START_BY_COORDINATE_DEFAULT[name]
 
 
-def _write_search_profile(ticker: str, catalogue: dict, profile: dict | None, search: dict | None) -> int:
+def _write_search_profile(ticker: str, catalogue: dict | None, profile: dict | None, search: dict | None) -> int:
     """Draft the asset's search profile: which columns the search may admit, which state it starts from, which
     coordinates it moves and which loops a round runs. The grids are the one preset — another grid is a hand's
     edit of the file, which is what a drafted artifact permits."""
+    if catalogue is None:
+        return _failure_exit_code(f"{ticker} has no feature contract", ml_config.catalogue_json(ticker).name, None,
+                                  f"make features-catalogue ASSET={ticker} first")
     while True:
         chosen = {"action": "draft"}
         timeframes = [entry["timeframe"] for entry in catalogue["timeframes"]]
@@ -214,12 +278,12 @@ def _write_search_profile(ticker: str, catalogue: dict, profile: dict | None, se
         searched = answer.splitlines() if answer else []
         chosen["coordinates to search"] = f"{len(searched)} of {len(coordinate_rows)}"
 
-        loop_rows = [{"loop": loop} for loop in config.ROUND_LOOPS]
-        loops = profile["loops"] if profile else list(config.ROUND_LOOPS)
+        loop_rows = [{"loop": loop} for loop in ml_config.COORDINATE_SEARCH_ROUND_LOOPS]
+        loops = profile["loops"] if profile else list(ml_config.COORDINATE_SEARCH_ROUND_LOOPS)
         answer = _step_answer(DRAFT_STEPS, chosen, loop_rows, "loop", selected=loops)
         if answer is None:
             return _cancelled_exit_code()
-        loops = [loop for loop in config.ROUND_LOOPS if loop in answer.splitlines()]
+        loops = [loop for loop in ml_config.COORDINATE_SEARCH_ROUND_LOOPS if loop in answer.splitlines()]
         chosen["loops"] = " ".join(loops) or "—"
 
         drafted = {
@@ -236,7 +300,7 @@ def _write_search_profile(ticker: str, catalogue: dict, profile: dict | None, se
             "loops": loops,
             "start_columns_by_timeframe": start_columns,
         }
-        path = config.coordinate_search_profile_json(ticker)
+        path = ml_config.coordinate_search_profile_json(ticker)
         changes = [{"parameter": key, "now": _short(profile.get(key) if profile else None), "after": _short(value)}
                    for key, value in sorted(drafted.items())
                    if not profile or profile.get(key) != value]
@@ -249,7 +313,7 @@ def _write_search_profile(ticker: str, catalogue: dict, profile: dict | None, se
         print()
         if search is not None and drafted != search["inputs"]["profile"]:
             print(f"{tui.state_label('WARN')}  the recorded search was run under another profile — the next "
-                  f"search starts a new state and overwrites {config.coordinate_search_json(ticker).name}")
+                  f"search starts a new state and overwrites {ml_config.coordinate_search_json(ticker).name}")
             print()
         answer = tui.gum_choose(f"draft {path.name}?",
                                 _option_rows(*(("draft",) if changes else ()), "back", "cancel"), "option")
@@ -277,19 +341,24 @@ def _short(value) -> str:
 
 
 def _write_coordinate_search(ticker: str, profile: dict | None, search: dict | None) -> int:
-    """Start the search in its own tmux session, through the Makefile that names it."""
-    path = config.coordinate_search_profile_json(ticker)
+    """Start the search, detached in its own tmux session or in the foreground of this screen, through the
+    Makefile that names it."""
+    path = ml_config.coordinate_search_profile_json(ticker)
     if profile is None:
         return _failure_exit_code("the search cannot start", f"{ticker}: {path.name}",
                                   "the asset has no search profile", "draft one first")
+    target = tui.gum_choose("session", list(SEARCH_SESSIONS), "target", ("target",))
+    if target in (None, ""):
+        return _cancelled_exit_code()
     plan = [{"parameter": "asset", "value": ticker},
             {"parameter": "profile", "value": path.name},
             {"parameter": "coordinates searched",
              "value": f"{sum(len(grid) > 1 for grid in profile['grid_by_coordinate'].values())} of {len(config.GRID_BY_COORDINATE_DEFAULT)}"},
             {"parameter": "loops", "value": " ".join(profile["loops"]) or "—"},
-            {"parameter": "writes", "value": f"{config.coordinate_search_json(ticker).name}, after every scored state"}]
+            {"parameter": "session", "value": next(row["session"] for row in SEARCH_SESSIONS if row["target"] == target)},
+            {"parameter": "writes", "value": f"{ml_config.coordinate_search_json(ticker).name}, after every scored state"}]
     tui.gum_table(("parameter", "value"), plan)
-    print(f"command         {shlex.join(('make', config.SEARCH_TARGET, f'ASSET={ticker}'))}")
+    print(f"command         {shlex.join(('make', target, f'ASSET={ticker}'))}")
     print()
     if profile["grid_by_coordinate"]:
         tui.gum_table(("coordinate", "grid", "points"),
@@ -298,20 +367,21 @@ def _write_coordinate_search(ticker: str, profile: dict | None, search: dict | N
         print()
     if search is not None and search["inputs"]["profile"] != profile:
         print(f"{tui.state_label('WARN')}  the recorded search was run under another profile — this one starts "
-              f"a new state and overwrites {config.coordinate_search_json(ticker).name}")
+              f"a new state and overwrites {ml_config.coordinate_search_json(ticker).name}")
         print()
     answer = tui.gum_choose(f"start the coordinate search of {ticker}?",
                             _option_rows("start", "cancel"), "option")
     if answer != "start":
         return _cancelled_exit_code()
     print()
-    code = _make(config.SEARCH_TARGET, f"ASSET={ticker}")
+    code = _make(target, f"ASSET={ticker}")
     print()
     if code:
         return _failure_exit_code(f"the coordinate search of {ticker} did not start",
-                                  shlex.join(("make", config.SEARCH_TARGET, f"ASSET={ticker}")),
+                                  shlex.join(("make", target, f"ASSET={ticker}")),
                                   f"make exited with {code}", "read make's lines above, then try again")
-    tui.gum_style([f"{tui.state_label('DONE')}  the search of {ticker} is in its session"], "DONE")
+    tui.gum_style([f"{tui.state_label('DONE')}  the search of {ticker} "
+                   f"{'is in its session' if target == config.SEARCH_DETACHED_TARGET else 'ran on this screen'}"], "DONE")
     return 0
 
 
@@ -322,7 +392,7 @@ def _recorded_search_tables(ticker: str, profile: dict | None, search: dict | No
     holds those trials and every number the tables show."""
     if search is None:
         return _failure_exit_code(f"{ticker} has no coordinate search",
-                                  config.coordinate_search_json(ticker).name,
+                                  ml_config.coordinate_search_json(ticker).name,
                                   "no search has run for this asset", "draft a profile, then start the search")
     trials = _trial_rows(ticker)
     tui.gum_table(("parameter", "value"), _state_rows(ticker, profile, search, trials))
@@ -340,10 +410,11 @@ def _recorded_search_tables(ticker: str, profile: dict | None, search: dict | No
 
 
 def _write_promoted_proposal(ticker: str, profile: dict | None, search: dict | None) -> int:
-    """Promote one proposal into the asset's own state, through the Makefile that reruns the chain after it."""
+    """Promote one proposal into the asset's own state, through the Makefile — which, at the workspace, reruns the
+    chain after it."""
     if search is None or not search["proposals"]:
         return _failure_exit_code(f"{ticker} has no proposal to promote",
-                                  config.coordinate_search_json(ticker).name,
+                                  ml_config.coordinate_search_json(ticker).name,
                                   "no search has run for this asset" if search is None else "the search proposes none",
                                   "start the search, then read its tables")
     chosen = {"action": "promote"}
@@ -360,10 +431,12 @@ def _write_promoted_proposal(ticker: str, profile: dict | None, search: dict | N
                    {"parameter": "proposal", "value": f"{answer} of {len(search['proposals'])}"},
                    {"parameter": "trial", "value": proposal["trial_index"]},
                    {"parameter": "coordinates moved",
-                    "value": _moved(trials[proposal["trial_index"] - 1], search)}])
+                    "value": _moved(trials[proposal["trial_index"] - 1], search)},
+                   {"parameter": "writes",
+                    "value": f"{ml_config.feature_set_json(ticker).name}, {ml_config.barriers_json(ticker).name}"}])
     print(f"command         {shlex.join(('make', config.PROMOTE_TARGET, f'ASSET={ticker}', f'PROPOSAL={answer}'))}")
     print()
-    decision = tui.gum_choose(f"promote proposal {answer} and rerun the ML chain for {ticker}?",
+    decision = tui.gum_choose(f"promote proposal {answer} of {ticker}?",
                               _option_rows("promote", "cancel"), "option")
     if decision != "promote":
         return _cancelled_exit_code()
@@ -373,60 +446,55 @@ def _write_promoted_proposal(ticker: str, profile: dict | None, search: dict | N
     if code:
         return _failure_exit_code(f"the promotion of {ticker} did not finish",
                                   shlex.join(("make", config.PROMOTE_TARGET, f"ASSET={ticker}", f"PROPOSAL={answer}")),
-                                  f"make exited with {code}",
-                                  f"read make's lines above; the chain is rerun by make ml-all ASSET={ticker}")
-    tui.gum_style([f"{tui.state_label('DONE')}  promoted proposal {answer} of {ticker} and reran its ML chain"], "DONE")
+                                  f"make exited with {code}", "read make's lines above")
+    tui.gum_style([f"{tui.state_label('DONE')}  promoted proposal {answer} of {ticker}; make's lines above are the "
+                   f"chain's where the Makefile reruns it"], "DONE")
     return 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        prog="python3 -B -m module_features.sub_module_coordinate_search_terminal.terminal",
+        prog="python3 -B -m module_ml.sub_module_terminal.terminal",
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, allow_abbrev=False)
-    parser.add_argument("--tickers", required=True, help="the asset this run is about, e.g. BTC")
+    parser.add_argument("--tickers", required=True, help="the assets this run is about, comma-separated, e.g. BTC")
     args = parser.parse_args()
     tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()]
 
     if not sys.stdin.isatty():
         return _failure_exit_code("the TUI needs a terminal", "standard input", "it is not a terminal, so no "
-                                  "choice can be asked",
-                                  "run make features-coordinate-search-terminal in a terminal")
+                                  "choice can be asked", "run make ml-terminal in a terminal")
     if not shutil.which("gum"):
         return _failure_exit_code("gum is not on PATH", "PATH", None,
                                   "install gum 2: https://github.com/charmbracelet/gum#installation")
-    if len(tickers) != 1:
-        return _failure_exit_code("the TUI is one asset per run", "--tickers",
-                                  f"it names {len(tickers)} assets",
-                                  "narrow it with ASSET=<TICKER> on the make line")
-    ticker = tickers[0]
-    if not config.catalogue_json(ticker).exists():
-        return _failure_exit_code(f"{ticker} has no feature contract", config.catalogue_json(ticker).name, None,
-                                  f"make features-catalogue ASSET={ticker} first")
-    catalogue = config.load_json(config.catalogue_json(ticker))
-    profile_path, search_path = config.coordinate_search_profile_json(ticker), config.coordinate_search_json(ticker)
-    profile = config.load_json(profile_path) if profile_path.exists() else None
-    search = config.load_json(search_path) if search_path.exists() else None
-
+    if not tickers:
+        return _failure_exit_code("the TUI needs an asset", "--tickers", "it names none", "ASSET=<TICKER> on the make line")
     try:
-        tui.gum_style([f"Coordinate search terminal",
-                       f"{ticker} · profile {_profile_state(profile, search)} · "
-                       f"{'no search' if search is None else str(len(_trial_rows(ticker))) + ' trials'}"], "CURRENT")
+        complete = sum(1 for ticker in tickers if ml_config.is_artifact_set_complete(ticker))
+        tui.gum_style(["ML terminal", f"{' '.join(tickers)} · {len(tickers)} assets · {complete} artifact sets complete"],
+                      "CURRENT")
         print()
-        tui.gum_table(("parameter", "value"), _state_rows(ticker, profile, search, _trial_rows(ticker)))
+        tui.gum_table(STATE_COLUMNS, _asset_rows(tickers), STATE_COLUMNS_DROP_ORDER)
         print()
-        action = tui.gum_choose("action", _option_rows("draft", "search", "status", "promote", "quit"), "option")
+        action = tui.gum_choose("action", _option_rows(*config.STAGES, "draft", "search", "recorded search",
+                                                       "promote", "quit"), "option")
         if action in (None, "", "quit"):
             return _cancelled_exit_code()
+        ticker = tui.gum_choose("asset", [{"asset": ticker} for ticker in tickers], "asset")
+        if ticker in (None, ""):
+            return _cancelled_exit_code()
+        if action in config.STAGES:
+            return _write_stage(ticker, action)
+        catalogue, profile, search = _asset_files(ticker)
         if action == "draft":
             return _write_search_profile(ticker, catalogue, profile, search)
         if action == "search":
             return _write_coordinate_search(ticker, profile, search)
-        if action == "status":
+        if action == "recorded search":
             return _recorded_search_tables(ticker, profile, search)
         return _write_promoted_proposal(ticker, profile, search)
     except KeyboardInterrupt:
         print()
-        print(f"{tui.state_label('CANCELLED')}  ended; a search already started stays in its session")
+        print(f"{tui.state_label('CANCELLED')}  ended; a stage or a search already started stays", file=sys.stderr)
         return tui.INTERRUPTED_EXIT_CODE
 
 

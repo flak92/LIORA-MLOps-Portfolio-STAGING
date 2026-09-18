@@ -22,7 +22,7 @@ A timeframe token is `<integer><unit>`, unit in `m`, `h`, `d`. The register is t
 hierarchy, a literal: `HIERARCHY_TIMEFRAMES` in `module_features/config.py`, finest first, and
 `DECISION_TIMEFRAME` beside it. Duration and slot derive from the token — `timeframe_duration_ms`
 reads the number and the unit, `timeframe_slot` writes the number, zero-padded, into its unit's
-field of the five slots of `../../module_skills/skill_sorting_files_naming_standard.md` — so
+field of the five slots of `module_skills/skill_sorting_files_naming_standard.md` — so
 `TIMEFRAME_DURATION_MS` and `TIMEFRAME_SLOT` are read off the hierarchy and never written by hand.
 Every timeframe is built from the canonical 1m series by `bars.py`, one loop over the hierarchy —
 the venue's own 4h candle would be the same aggregation, so an aggregate here is a native bar, not
@@ -117,7 +117,7 @@ in a name.
 
 The feature id is the column of X and the key of every importance. A feature parquet's columns
 carry no timeframe — the file name carries it, in slots
-(`../../module_skills/skill_sorting_files_naming_standard.md` § The timeframe slot standard) — so a
+(`module_skills/skill_sorting_files_naming_standard.md` § The timeframe slot standard) — so a
 stored column reads `centered_rsi14` while its importance key reads `centered_rsi14_1h`.
 
 Reserved, not written today: a cross-timeframe definition would carry a timeframe on every term

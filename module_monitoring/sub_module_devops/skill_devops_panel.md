@@ -21,8 +21,9 @@ nothing of Portainer or Traefik is inside: no reverse proxy, no third-party
 management UI.
 
 It is nested rather than promoted because the dashboard serves its own
-directory, so the panel's page needs no route; whether `sub_module_*` is a
-convention is `../../AGENTS.md` § The default choice.
+directory, so the panel's page needs no route; the grammar it answers to is the
+sub-module row of `AGENTS.md` § Canonical vocabulary, and the three that minted it
+are named in `AGENTS.md` § The default choice.
 
 ## The one socket, and what containment means
 
@@ -30,7 +31,7 @@ convention is `../../AGENTS.md` § The default choice.
 The dashboard holds no socket and makes no Engine call: it proxies `/devops/*`
 to `devops` by service name over the compose network. The scoped
 repeal of the socket rule lives with the topology it changes,
-`../../module_skills/skill_asset_containers.md`.
+`module_skills/skill_asset_containers.md`.
 
 The containment is of the **mount**, not of the **reach**. Any client that can
 reach the dashboard's loopback origin can reach the Engine through the proxy —
@@ -47,7 +48,7 @@ Makefile measures that group the way it measures `UID` and `GID`.
 them through the host's own daemon; a task is a foreign container in the
 **containers on this host** table; § The guard refuses it the three verbs as any
 other project's. The provider's console and container metrics are absent here —
-described. `../../module_skills/skill_pre_aws_solution.md` § The mapping table.
+described. `module_skills/skill_pre_aws_solution.md` § The mapping table.
 
 ## The API
 
@@ -59,7 +60,7 @@ minimum, so upgrading the engine does not move the contract underneath the panel
 | `GET /devops/api/machines` | every container the daemon reports, this project's first and marked `own_project`; state, uptime, image, ports, restarts, and one stats sample |
 | `GET /devops/api/networks` | the networks, their driver and scope, and what is attached to each |
 | `GET /devops/api/volumes` | named volumes with the sizes only `/system/df` reports, and the bind mounts this project's containers carry |
-| `GET /devops/api/image` | the image this container runs — `liora-1m-pipeline`, the one image every service runs — named by the panel's own container rather than by a literal |
+| `GET /devops/api/image` | the image this container runs — named by the panel's own container, never by a literal |
 | `GET /devops/api/events` | this project's own daemon events over a bounded window, newest first |
 | `POST /devops/api/machines/<id>/<action>` | `start`, `stop`, `restart` — the whole allowlist |
 
@@ -114,7 +115,7 @@ container the daemon reports, foreign ones included — the one measurement of a
 container's memory and CPU. Five more sections sit below it — **networks**, **volumes**, **bind
 mounts**, **image** and **events** — each a flat table of what its route
 answered — **image** a key-value box, the one row its route answers with — with no arithmetic of the page's own. Their keys are registered in
-`../../module_skills/glossary.md` § DevOps panel and are not restated here.
+`module_skills/glossary.md` § DevOps panel and are not restated here.
 
 ## What the panel owes the reader
 

@@ -1,27 +1,29 @@
 # Skill: a text-based user interface (TUI) — tables, lists and forms in gum
 
-A sub-module that opens a TUI draws every screen in gum, the one terminal instrument the host
+An owner of a TUI — a module's `sub_module_terminal/`, the workspace's `workspace_terminal/`, or a
+sub-module that opens a TUI — draws every screen in gum, the one terminal instrument the host
 admits (`AGENTS.md` § Values, *Minimum requirements*). Python decides what a screen holds — its
 rows, its columns, its words — and gum draws it and takes the answer. The rule is neuro-optical
 consistency (`AGENTS.md` § Architecture shape): a screen is read by eye before it is understood, so
 one concept always takes one form, a change of form means a change of meaning, and the decision and
 the result stand where the eye lands. What each screen holds and what each answer writes is the
-sub-module's own skill — `skill_scalability_crawler.md` § The TUI,
-`module_features/sub_module_coordinate_search_terminal/skill_coordinate_search_terminal.md`
-§ The screens; how a screen is drawn is this skill. *The repository shows the destination, not the
+owner's own skill, beside its code — `skill_<domain>_terminal.md` for a module's terminal,
+`skill_workspace_terminal.md` for the workspace's,
+`module_skills/sub_module_scalability_crawler/skill_scalability_crawler.md` § The TUI for the
+crawler; how a screen is drawn is this skill. *The repository shows the destination, not the
 road*: nothing measures, checks or schedules a screen — a hand runs it.
 
 ## The instruments
 
-One role, one instrument; the one module that speaks them is the sub-module's `tui.py`, one file
-twice by extraction (`glossary.md` § Twice by extraction).
+One role, one instrument; the one module that speaks them is the owner's `tui.py`, one file
+seven times by extraction (`glossary.md` § Twice by extraction).
 
 | role | instrument | draws | never |
 |---|---|---|---|
 | context, an outcome | `gum style`, a rounded border in the state's colour | the header block that opens a run; a warning about what an action does; the result or the failure that closes it | a banner; a block inside a block; a block around a table |
 | rows of one kind, read | `gum table --print` | the state, the steps, the plan, a preview, the changes, the results | a colour on a cell, a row or a border; the interactive `gum table` |
 | a choice | `gum choose` | the action, each form of the action, every gate | `gum confirm`, whose default is shown by colour alone; `gum input` for a value the tree already holds |
-| a value of a set too long to list | `gum filter`, inline | a path of the tree | `--no-strict`, whose Enter returns the text typed, not the value under the cursor |
+| a value of a set too long to list | `gum filter`, inline, its placeholder an example the caller gives | a path of the tree | `--no-strict`, whose Enter returns the text typed, not the value under the cursor; a placeholder written into `tui.py`, which holds no sentence of its own |
 | a line | Python's `print` | a fact beside a table, progress, `wrote …`, `CANCELLED` | a line rewritten in place; a cleared screen; an escape code written by Python |
 
 ## The screen
@@ -47,7 +49,7 @@ Each screen answers six questions, each in one place:
 ## One concept, one representation
 
 A state is a word from one closed list; a symbol and a colour repeat the word and never replace it.
-A sub-module may name a state of its own beside these, in its own skill, on the same terms.
+An owner may name a state of its own beside these, in its own skill, on the same terms.
 
 | word | means | symbol | colour | plain output |
 |---|---|---|---|---|
@@ -70,8 +72,8 @@ A sub-module may name a state of its own beside these, in its own skill, on the 
 - **A table** holds rows of one kind with more than one field; one fact is a line
   (`repository root  <path>`, `command  <command line>`).
 - **Columns:** `#` where the rows are numbered, the identifier, then the fields, the secondary last.
-  The header words are the register's UI labels (`glossary.md`, the sub-module's own section), lower
-  case. Every table of a TUI is listed in its sub-module's own skill with its columns and the order
+  The header words are the register's UI labels (`glossary.md`, the owner's own section), lower
+  case. Every table of a TUI is listed in its owner's own skill with its columns and the order
   a narrow terminal drops them in.
 - **`#` counts from 1 in the order the file or the queue holds;** a screen sorts nothing.
 - **A cell is the value as it stands** — a count, a state word, a mark, a number as the file carries
@@ -81,7 +83,7 @@ A sub-module may name a state of its own beside these, in its own skill, on the 
   `left out at <n> columns: <names>`. The identifier is never left out or cut; wider still, the
   terminal wraps it. Off a terminal every column stays.
 - **A table prints whole:** no pager. A bound, when a table has one, is a constant of the
-  sub-module's `config.py` and is never silent — the rows it leaves out are counted in a line under
+  owner's `config.py` and is never silent — the rows it leaves out are counted in a line under
   it.
 - **Invocation:** the rows on gum's stdin as CSV from Python's `csv`; `--border rounded`,
   `--border hidden` in plain output; `TERM=dumb` in gum's environment, so gum bolds no row.
@@ -159,7 +161,7 @@ A form is one decision; an action is its forms in order, and ends.
   else is coloured by a TUI of this tree, and nothing is dimmed but gum's own key line and the
   filter's prompt and placeholder, in gum's grey.
 - **Plain output switches on by itself** when `NO_COLOR` is set and not empty, `TERM` is `dumb`, or
-  standard output is not a terminal (`OUTPUT_PLAIN`, in each sub-module's `config.py`, twice by
+  standard output is not a terminal (`OUTPUT_PLAIN`, in each owner's `config.py`, twice by
   extraction): no colour — gum is handed `NO_COLOR` —, no symbol — the word in brackets —, no border
   — a table `hidden`, a block printed as its lines.
 - **Never changes between the two:** a word, the order, a count, a column, an exit code.
@@ -169,15 +171,15 @@ A form is one decision; an action is its forms in order, and ends.
 
 `-h`, `--help` prints the action module's docstring and exits 0. The docstring holds the actions, the
 keys — Enter, x, Esc, Ctrl-C —, plain output and its three conditions, the exit codes and three
-examples. Each sub-module's own skill gives the line that runs it without the Makefile.
+examples. Each owner's own skill gives the line that runs it without the Makefile.
 
 ## Declined here
 
 | asked of a terminal interface | declined, because | rests on |
 |---|---|---|
 | Rich, Textual, curses | the host is the standard library and gum 2 | `AGENTS.md` § Values, *Minimum requirements* |
-| `--json` | the snapshot, or the artifact, is the machine-readable state | `AGENTS.md` D17 |
-| `--no-input` | a hand alone runs a TUI, one action per run | `AGENTS.md` § Values, D18 |
+| `--json` | the snapshot, or the artifact, is the machine-readable state | `glossary.md` § Stores |
+| `--no-input` | a hand alone runs a TUI, one action per run | `AGENTS.md` § Values, *A rule may be read* |
 | `--simple`, `--a11y`, `--no-color`, `--no-animation` | plain output follows the environment, and nothing animates | § Colour and plain output |
 | a spinner, a progress bar, a percentage | a spinner hides the lines of what the program started, and a session's length is unknown | § Feedback and progress |
 | a main loop, an `exit` option, a second menu | one action per run | `AGENTS.md` § Values |
@@ -190,7 +192,11 @@ examples. Each sub-module's own skill gives the line that runs it without the Ma
 ## Where the screens live
 
 - **`tui.py` draws and asks; the action module decides what a screen holds.** `tui.py` knows nothing
-  of the sub-module's own objects, writes no file, and is the one module that speaks gum.
+  of the owner's own objects, writes no file, and is the one module that speaks gum.
+- **An owner reads its module's `config.py` where it can:** an owner that can import its module's
+  standard-library `config.py` does so and duplicates nothing; the one that cannot
+  (`module_features`, whose `config.py` imports numpy) carries registered copies (`glossary.md`
+  § Twice by extraction).
 - **A screen reads and never recomputes:** every fact it shows comes from the function that owns it.
   Presentation arithmetic stays presentation: a count of rows, `<k> / <n>`, a step's seconds, the
   columns that fit.
@@ -199,4 +205,5 @@ examples. Each sub-module's own skill gives the line that runs it without the Ma
   are descriptors (`_step_rows()`, `_file_rows()`, `_skill_rows()`); an action is named for what it
   writes and returns its exit code (`_write_crawl_reports()`, `_write_search_profile()`), and an
   action that writes nothing is named for what it draws (`_recorded_search_tables()`) and returns its
-  exit code too. Forbidden: `render_`, `show_`, `print_`, `draw_`, a screen class.
+  exit code too; an action that starts a target does so through `_make()` — one call of `make`, its
+  lines uncaptured. Forbidden: `render_`, `show_`, `print_`, `draw_`, a screen class.

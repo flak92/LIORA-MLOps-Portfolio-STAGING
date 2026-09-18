@@ -2,7 +2,7 @@
 
 A directory listing is read by eye before any parser reads it, and every
 machine sorts it lexicographically — so a name is designed for the order it
-will land in, on any server, under any locale. *The repository shows the destination, not the road*: the order is designed; the crawler reads against it every listed file whose row marks it, and gates nothing (`skill_scalability_crawler.md`).
+will land in, on any server, under any locale. *The repository shows the destination, not the road*: the order is designed; the crawler reads against it every listed file whose row marks it, and gates nothing (`module_skills/sub_module_scalability_crawler/skill_scalability_crawler.md`).
 
 - **Taxonomic ordering: the category token leads the name, so a lexicographic
   listing groups siblings into one contiguous block.** `module_*` beside

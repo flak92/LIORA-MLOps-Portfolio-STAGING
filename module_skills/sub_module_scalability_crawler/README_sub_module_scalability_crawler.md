@@ -1,13 +1,13 @@
 # Scalability crawler
 
 Reads each file a hand lists against the skills a hand marks for it and appends each agent's answer to
-the file's report. Its rules are `../skill_scalability_crawler.md`, and the standards of its screens
+the file's report. Its rules are `skill_scalability_crawler.md`, beside this file, and the standards of its screens
 `../skill_tui_designer.md`, which every TUI of this tree obeys.
 
 ```bash
 make skills-crawl     # the TUI: the listed paths and the skill matrix, then crawl (vendor, model, effort, permissions, files, the plan), add a path with its skills, mark skills or remove a path
 make skills-status    # store/status/skills_status.json again, after to_crawl.md was edited by hand
-STORE_STATUS_DIR=store/status python3 -B -m module_skills.sub_module_scalability_crawler.crawl -h   # the TUI's keys, plain output and exit codes
+STORE_STATUS_DIR=../store_status python3 -B -m module_skills.sub_module_scalability_crawler.crawl -h   # the TUI's keys, plain output and exit codes
 ```
 
 Kept by hand: `to_crawl.md`, the skill matrix — the paths to crawl and, marked `X`, the skills each is

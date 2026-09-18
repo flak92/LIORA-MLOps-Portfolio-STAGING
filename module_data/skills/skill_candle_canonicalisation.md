@@ -436,14 +436,14 @@ run outside a container.
 
 **The seat.** On the one Linux container instance (Amazon ECS on Amazon EC2) the
 file sits at the same path under `/store`, on the volume mounted where the
-`./store/<content>` mounts are today; the whole-file lock holds because that volume is a block device, not a
+`./store_<content>` mounts are today; the whole-file lock holds because that volume is a block device, not a
 network filesystem. After the run the file is copied whole to the asset's prefix
 in object storage (Amazon S3) — a copy, never a mount. The promotion threshold
-is `../../module_skills/skill_pre_aws_solution.md` § The databases.
+is `module_skills/skill_pre_aws_solution.md` § The databases.
 
 The rule this section instantiates for the database — a container is compute
 and never the owner of an asset's state — is project-wide and lives in
-`../../module_skills/skill_pre_aws_solution.md`, the canon beside the modules; this section stays its one
+`module_skills/skill_pre_aws_solution.md`, the canon beside the modules; this section stays its one
 statement for the market object.
 
 ## 16. Data-quality invariants
@@ -563,4 +563,4 @@ canonicalisation
 The word **merge** is avoided: it suggests mixing O/H/L/C/V across venues,
 which § 5 forbids. Say *venue selection*, *canonicalisation* or *primary-failover
 selection* instead. The register's rejected synonyms — *fused series*, *index*,
-*blended price* — are in `../../module_skills/glossary.md` § Market object.
+*blended price* — are in `module_skills/glossary.md` § Market object.

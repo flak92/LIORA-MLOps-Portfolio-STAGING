@@ -35,7 +35,7 @@ linter, no build step, no framework.
   marks the final-holdout row. Sparklines are inline SVG with a dashed reference.
   One category is marked that way on the data views: `invariant`,
   on the cells of a column whose only correct value is zero
-  (`../../module_data/skills/skill_candle_canonicalisation.md` § 16),
+  (`module_data/skills/skill_candle_canonicalisation.md` § 16),
   so a reader can tell the numbers he may be alarmed by from the ones a change of data
   provider is expected to move. Such columns are named by their header in the render
   function, never counted by position.
@@ -47,12 +47,13 @@ linter, no build step, no framework.
 - The page reads four committed snapshots (`data_status.json`, `features_status.json`,
   `ml_status.json`, `skills_status.json`) and renders everything client-side —
   `data.js` the data snapshot as it arrives, the other three held in
-  `FEATURES_STATUS`, `ML_STATUS` and `SKILLS_STATUS`; a snapshot carries only fields the page reads. The Lifecycle tab reads the newest recorded run through
+  `FEATURES_STATUS`, `ML_STATUS` and `SKILLS_STATUS`; a snapshot carries what its module measured, and the page
+  renders what it reads — a key the page does not read stays the module's own. The Lifecycle tab reads the newest recorded run through
   `GET /runs` and `GET /runs/<run_id>` and renders it as it arrives. The DevOps panel
   adds its own two, `PANEL_MACHINES` and `MACHINE_SAMPLES`, on its own page — five
   state globals across the two pages; the pill-hook registry `PILL_HOOKS` and the latches
   `PANEL_POLL_IN_FLIGHT` and `MACHINE_ACTION_IN_FLIGHT` are not state.
-  The panel's behaviour is `skill_devops_panel.md`.
+  The panel's behaviour is `sub_module_devops/skill_devops_panel.md`.
 - The page computes no domain or model results — only presentation arithmetic
   over already measured values (shares, a cross-fold mean, a difference of two
   reported metrics, a CPU rate from two polls of `cpu_usage_seconds`, a report's age against the clock). Moving
@@ -61,7 +62,7 @@ linter, no build step, no framework.
   the persona beyond the business one: **DevOps** opens the panel at `sub_module_devops/index.html`. It reaches the
   browser as a static file below the dashboard's web root, from the sub-module the dashboard serves
   as a directory — so the server's routes know nothing of it: the panel's API is a route, its page
-  is not. `skill_devops_panel.md` holds the panel's rest.
+  is not. `sub_module_devops/skill_devops_panel.md` holds the panel's rest.
 
 ## Extending
 
@@ -69,17 +70,17 @@ linter, no build step, no framework.
   `<section id="tab-<key>" data-panel="tab" data-key="<key>" hidden>`, and one section
   script in the list at the end of `index.html` — `initPills` in `page.js` wires them by
   `data-key`; then its row in `README_module_monitoring.md` § Design rationale, and the
-  enumerations that name the tabs move in the same commit: `README.md`
-  § Quickstart and § Dashboard, and `../../module_skills/glossary.md` § DevOps
+  enumerations that name the tabs move in the same commit: the Orchestration `README.md`
+  § Quickstart and § Dashboard, and `module_skills/glossary.md` § DevOps
   panel. A section that fetches a new object adds a state global, and the sentence
   above that counts them moves with it.
 - **A route** of the dashboard is one branch of `DashboardHandler.do_GET` (or `do_POST`)
   in `serve.py`, with its constant in `config.py` when it builds a path; a route of the
   panel is `PanelHandler` in `sub_module_devops/serve.py` with its Engine path in
-  `sub_module_devops/config.py`, and its row in the route table of `skill_devops_panel.md`.
+  `sub_module_devops/config.py`, and its row in the route table of `sub_module_devops/skill_devops_panel.md`.
   Either way the places that list routes move in the same commit — `serve.py`'s docstring,
-  `README_module_monitoring.md` § Design rationale, `../../module_skills/skill_pre_aws_solution.md` § The mapping table — and
-  every key the route publishes enters `../../module_skills/glossary.md`.
+  `README_module_monitoring.md` § Design rationale, `module_skills/skill_pre_aws_solution.md` § The mapping table — and
+  every key the route publishes enters `module_skills/glossary.md`.
 - **A column or a cell** is one edit in the render function that emits the row, because the
   header is built beside the rows.
 

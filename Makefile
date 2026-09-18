@@ -73,6 +73,8 @@ data-status:     ## data_status.json -> store/status
 	$(call basket,data,module_data.status)
 data-all:        ## the data chain in order
 	$(MAKE) data-download data-ingest data-status
+data-terminal:   ## the data terminal: each asset's raw days and database, then one stage — download, ingest or status; run it in a terminal
+	python3 -B -m module_data.sub_module_terminal.terminal --tickers $(if $(ASSET),$(ASSET),$(TICKERS_CSV))
 
 features-bars:   ## canonical 1m -> every timeframe of the register, in each asset's own database
 	$(call fanout,features,module_features.bars,$(JOBS))
@@ -82,11 +84,11 @@ features-status: ## features_status.json -> store/status: the catalogue's facts 
 	$(call basket,features,module_features.status)
 features-all:    ## the feature chain in order
 	$(MAKE) features-bars features-catalogue features-status
-# the feature layer's own terminal, on the host: python3 and gum, no runner and no dependency — it computes
-# nothing, writes the asset's search profile, and starts every stage through this Makefile. It gates nothing and
-# no target of the chain depends on it; it does not resume, so it has no tmux twin
-features-coordinate-search-terminal: ## the coordinate search's TUI: the asset's profile and the search recorded under it, then one action — draft the profile, start the search detached, read its tables, or promote a proposal — then it closes; run it in a terminal
-	python3 -B -m module_features.sub_module_coordinate_search_terminal.terminal --tickers $(if $(ASSET),$(ASSET),$(TICKERS_CSV))
+# a module's own terminal, on the host: python3 and gum, no runner and no dependency — it computes nothing,
+# shows what that module's stores hold and starts one of this Makefile's targets. It gates nothing and no target
+# of the chain depends on it; it does not resume, so it has no tmux twin
+features-terminal: ## the features terminal: each asset's database, catalogue and parquets, then one stage — bars, catalogue or status; run it in a terminal
+	python3 -B -m module_features.sub_module_terminal.terminal --tickers $(if $(ASSET),$(ASSET),$(TICKERS_CSV))
 
 ml-labels:       ## triple-barrier labels on the canonical 1m path
 	$(call fanout,ml,module_ml.labels,$(JOBS))
@@ -100,6 +102,8 @@ ml-status:       ## ml_status.json -> store/status, and <TICKER>_README.md
 	$(call basket,ml,module_ml.status)
 ml-all:          ## the ML chain in order
 	$(MAKE) ml-labels ml-hpo ml-train ml-strategy ml-status
+ml-terminal:     ## the ML terminal: each asset's artifacts and its search, then one action — a stage, or draft the profile, start the search, read the recorded search, promote a proposal; run it in a terminal
+	python3 -B -m module_ml.sub_module_terminal.terminal --tickers $(if $(ASSET),$(ASSET),$(TICKERS_CSV))
 ml-coordinate-search: ## coordinate search on the validation folds under the asset's profile and frozen parameters; resumes; promotes nothing
 	$(call fanout,ml,module_ml.coordinate_search,$(JOBS))
 # a hand's decision for one asset, never fanned out: ASSET= is required
@@ -130,6 +134,8 @@ on: build        ## the presentation switch: the dashboard and the DevOps panel 
 	@python3 -c "import webbrowser; url = 'http://127.0.0.1:$(PORT)/'; print('dashboard at', url); webbrowser.open(url)"
 off:             ## the presentation switch: stop and remove every container of this project
 	$(COMPOSE) down
+monitoring-terminal: ## the monitoring terminal: the four snapshots and the run records, then on or off; run it in a terminal
+	python3 -B -m module_monitoring.sub_module_terminal.terminal
 btc-all: all     ## the single-asset chain by its ticker name; the alias goes when the basket grows
 # the stages of all, one make target each, measured from outside by record.py: the four pipeline stores before and after
 RECORDED_STAGES := data-download data-ingest data-status features-bars features-catalogue features-status ml-labels ml-hpo ml-train ml-strategy ml-status

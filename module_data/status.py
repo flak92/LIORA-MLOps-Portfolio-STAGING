@@ -246,6 +246,7 @@ def main() -> int:
         "canonical_source": canonical,
     }
     status_path = config.DATA_STATUS_JSON_PATH
+    status_path.parent.mkdir(parents=True, exist_ok=True)
     status_path.write_text(json.dumps(status, sort_keys=True, indent=1) + "\n", encoding="utf-8")
 
     print(f"window from {status['window_start_utc']}  venues {' '.join(config.SOURCE_VENUES)}")

@@ -733,7 +733,7 @@ back to the grid floor, which is itself the loudest thing the three can say.
 ## 10. Artifacts and modules
 
 Per asset in `store/assets_artifacts/<TICKER>/`, fifteen files, registered file by
-file in `../../module_skills/glossary.md` § Artifacts: the feature layer's contract
+file in `module_skills/glossary.md` § Artifacts: the feature layer's contract
 `<TICKER>_catalogue.json`, three per-timeframe catalogue parquets, the
 label-events and out-of-sample predictions parquets on the 15m decision grid,
 two evaluation JSONs, the one parameters file, the README, and the five a hand's
@@ -796,7 +796,7 @@ than written down (the machine this runs on changes size); override with
 and the sum of the concurrent ceilings is what has to fit the host.
 
 Thread caps stay at one — `nthread = 1`, `OMP_NUM_THREADS = 1` — for the
-reason `../../module_skills/skill_determinism.md` states. The search is CPU-bound and one asset's
+reason `module_skills/skill_determinism.md` states. The search is CPU-bound and one asset's
 study is sequential by construction, so the wall-clock floor of `ml-hpo` is the
 slowest single asset.
 
@@ -820,7 +820,7 @@ stage, and most edits do not touch it:
 This table is the layer's rebuild condition, held in a document a reader applies
 rather than in a stage: what decides that an asset's artifacts are stale stays
 separate from the stages that rebuild them —
-`../../module_skills/skill_pre_aws_solution.md` § The rebuild condition stays
+`module_skills/skill_pre_aws_solution.md` § The rebuild condition stays
 separable.
 
 ## 12. What this is, and what it is not

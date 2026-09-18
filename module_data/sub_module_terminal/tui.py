@@ -119,10 +119,11 @@ def gum_choose(header: str, rows: list[dict], value_column: str, drop_order: tup
                 "--", *(f"{label}\t{row[value_column]}" for label, row in zip(labels, rows)))
 
 
-def gum_filter(header: str, candidates: list[str], value: str = "") -> str | None:
-    """The candidate a hand picks under header by typing part of it, drawn inline under the screen above it."""
+def gum_filter(header: str, candidates: list[str], placeholder: str, value: str = "") -> str | None:
+    """The candidate a hand picks under header by typing part of it, drawn inline under the screen above it.
+    The placeholder is an example of what is being filtered, so it is the caller's sentence and not this file's."""
     colours = () if config.OUTPUT_PLAIN else tuple(
         argument for flag in ("--indicator.foreground", "--match.foreground", "--header.foreground")
         for argument in (flag, STATE_COLOURS["CURRENT"]))
-    return _gum("filter", "--header", header, "--placeholder", config.FILTER_PLACEHOLDER,
+    return _gum("filter", "--header", header, "--placeholder", placeholder,
                 f"--value={value}", "--height", "12", "--prompt", "> ", "--indicator", ">", *colours, "--", *candidates)

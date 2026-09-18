@@ -323,7 +323,7 @@ def _write_added_path(marks: dict[str, list[str]], skills: list[str]) -> int:
     candidates = [path for path in load_repository_paths() if path not in listed_paths]
     entry = ""
     while True:   # back at the add's gate returns here, the path last picked typed again
-        entry = tui.gum_filter("path to add", candidates, entry)
+        entry = tui.gum_filter("path to add", candidates, config.FILTER_PLACEHOLDER, entry)
         if not entry:
             return _cancelled_exit_code()
         print(f"resolving {entry} …", flush=True)
