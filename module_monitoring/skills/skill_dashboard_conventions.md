@@ -70,10 +70,9 @@ linter, no build step, no framework.
   `<section id="tab-<key>" data-panel="tab" data-key="<key>" hidden>`, and one section
   script in the list at the end of `index.html` — `initPills` in `page.js` wires them by
   `data-key`; then its row in `README_module_monitoring.md` § Design rationale, and the
-  enumerations that name the tabs move in the same commit: the Orchestration `README.md`
-  § Quickstart and § Dashboard, and `module_skills/glossary.md` § DevOps
-  panel. A section that fetches a new object adds a state global, and the sentence
-  above that counts them moves with it.
+  enumerations that name the tabs move in the same commit: `README.md` § Quickstart and
+  § Dashboard, and `module_skills/glossary.md` § DevOps panel. A section that fetches a
+  new object adds a state global, and the sentence above that counts them moves with it.
 - **A route** of the dashboard is one branch of `DashboardHandler.do_GET` (or `do_POST`)
   in `serve.py`, with its constant in `config.py` when it builds a path; a route of the
   panel is `PanelHandler` in `sub_module_devops/serve.py` with its Engine path in

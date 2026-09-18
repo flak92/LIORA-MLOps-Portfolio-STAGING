@@ -1,17 +1,16 @@
 # Skill: the ML terminal — what each screen holds and what each answer writes
 
 `make ml-terminal` opens the ML module's text-based user interface (TUI): the screens `terminal.py` composes and
-`tui.py` draws in gum, to the standards of `../skill_tui_designer.md`. This document says what each
+`tui.py` draws in gum, to the standards of `../../module_skills/skill_tui_designer.md`. This document says what each
 screen holds and what each answer writes or starts; how a screen is drawn is that skill's. One action per run: after it
 the program ends.
 
 ## The assets, and what the terminal knows
 
 The assets are `ASSET=` on the make line and `--tickers` at the process boundary, like every stage — one or more,
-comma-separated: in this repository `ASSET=` is required and names one; at the workspace the basket is the default and
-`ASSET=` narrows it. An action is for one asset. Where the run names more than one, the asset form — `gum choose`
-headed *asset*, the assets of `--tickers` as rows — asks which, after the menu; a run of one asset is answered without
-asking (`--select-if-one`). A ticker is never typed.
+comma-separated: the basket is the default and `ASSET=` narrows it to one. An action is for one asset. Where the run
+names more than one, the asset form — `gum choose` headed *asset*, the assets of `--tickers` as rows — asks which,
+after the menu; a run of one asset is answered without asking (`--select-if-one`). A ticker is never typed.
 
 Per asset it reads, as objects, `<TICKER>_catalogue.json` for the columns the search may admit and the decision slot
 the labels parquet is named by, `<TICKER>_coordinate_search.json` for where the search stands — its beam, its champion,
@@ -73,17 +72,17 @@ one asset.
   about how the search resumes, not a refusal. A draft needs the contract: without `<TICKER>_catalogue.json` the action
   ends on the failure block, whose *next* is `make features-catalogue ASSET=<TICKER>` first.
 - **search** — the *session* form first, `gum choose` headed *session*: *detached*, the search in its own tmux session
-  through the workspace's twin `tmux-ml-coordinate-search`, alive after this terminal closes; *foreground*, the module's
+  through the Makefile's twin `tmux-ml-coordinate-search`, alive after this terminal closes; *foreground*, the module's
   own stage `ml-coordinate-search` on this screen, ending with the search. Then the plan: the asset, the profile, the
   coordinates searched, the loops, the session, what will be written, and the `command` line verbatim; then the grid of
   each coordinate; then the same `WARN` line where it applies, and the gate
   `start the coordinate search of <TICKER>?` with *start* first. *start* runs `make <target> ASSET=<TICKER>` and the
   Makefile's own lines stay on the screen — for a detached session, whether it already exists or has just begun; for
   the foreground, the search's own lines until it ends. The `DONE` block says which: the search `is in its session` or
-  `ran on this screen`. *detached* resolves at the workspace alone — `tmux-ml-coordinate-search` is the Orchestration
-  Makefile's, and D14 keeps a tmux word out of this one — so in this repository alone it ends on make's own words in the
-  failure block, and *foreground* is the form that runs. A search needs a profile: without one the action ends on the
-  failure block, whose *next* is to draft one.
+  `ran on this screen`. *detached* runs the Makefile's own `tmux-ml-coordinate-search`, which requires the `ASSET=`
+  the terminal always passes and starts `make ml-coordinate-search` for it in the tmux session
+  `coordinate-search-<ticker>`, one per asset; where that session is already running, the target says so and starts
+  nothing. A search needs a profile: without one the action ends on the failure block, whose *next* is to draft one.
 - **recorded search** — the state table, `parameter | value`: the asset, the profile, the coordinates searched, the
   loops, the trials in all and per loop, whether it converged, the champion trial and the proposal count; the research
   path (each accepted expansion with its round, loop, family, trial and the path's CAGR, Calmar, drawdown and trade
@@ -96,14 +95,14 @@ one asset.
 - **promote** — the proposals as a list under the steps table, then the plan with the coordinates that proposal moves
   and what it writes — `<TICKER>_feature_set.json`, `<TICKER>_barriers.json` — and the `command` line verbatim, then the
   gate `promote proposal <n> of <TICKER>?`. *promote* runs
-  `make ml-coordinate-search-promote ASSET=<TICKER> PROPOSAL=<n>`: in this repository the promotion, and it stops
-  there; at the workspace the same name's second recipe line is `ml-all` for that asset, so the chain's own lines stay
-  on the screen as they come — the `DONE` block says whose lines they are.
+  `make ml-coordinate-search-promote ASSET=<TICKER> PROPOSAL=<n>`: the promotion in a one-off container of the `ml`
+  runner, then that target's second recipe line, `ml-all` for that asset, so the chain's own lines stay on the screen
+  as they come — the `DONE` block says whose lines they are.
 - **quit** — one `CANCELLED` line, nothing written, exit 0.
 
 There is no **stop**: a hand stops a detached search with `tmux attach -t coordinate-search-<ticker>` and Ctrl-C, as
-the Orchestration `make help` says, and a foreground one with Ctrl-C on this screen. There is no **holdout**: F5 is
-computed by `ml-all`, which the promotion runs at the workspace.
+`make help` says, and a foreground one with Ctrl-C on this screen. There is no **holdout**: F5 is computed by
+`ml-all`, which the promotion runs after it.
 
 ## The tables
 
@@ -131,15 +130,14 @@ the identifier is never dropped, and a list is a table a hand picks from.
 ## What it starts, and how
 
 `make`, and only `make` — one call, its lines uncaptured so they reach this terminal as they come, no `check`, no
-`cwd`, no `env`, no timeout. The same target name resolves in both Makefiles: `ml-<stage>`, `ml-coordinate-search` and
-`ml-coordinate-search-promote` run in this repository's venv here and in a one-off container of the `ml` runner at the
-workspace, and an option of the menu exists only for a target both carry. The session form's two targets are the one
-place the form itself names the difference: `ml-coordinate-search` is both Makefiles', `tmux-ml-coordinate-search` the
-Orchestration Makefile's alone — a terminal does not resume, a search does, and only a stage that resumes has a
-detached twin (`AGENTS.md` § Canonical vocabulary, the Makefile-targets row). tmux and docker compose are that
-Makefile's boundaries, and a TUI that spoke either would be a second place they are named. The terminal does not even
-test whether tmux is on the `PATH`, or whether a target is in the Makefile it runs: when either is not, `make` says so
-in its own words and the failure block carries them.
+`cwd`, no `env`, no timeout. Every target it names is the Makefile's: `ml-<stage>`, `ml-coordinate-search` and
+`ml-coordinate-search-promote` each run their stage in a one-off container of the `ml` runner, and an option of the
+menu exists only for a target the Makefile carries. The session form's second target is `tmux-ml-coordinate-search`,
+the detached twin of `ml-coordinate-search` — a terminal does not resume, a search does, and only a stage that
+resumes has a detached twin (`AGENTS.md` § Canonical vocabulary, the Makefile-targets row). tmux and docker compose
+are the Makefile's boundaries, and a TUI that spoke either would be a second place they are named. The terminal does
+not even test whether tmux is on the `PATH`, or whether a target is in the Makefile it runs: when either is not,
+`make` says so in its own words and the failure block carries them.
 
 `PROPOSAL=` on the outer make line does nothing — the terminal always passes the rank a hand chose.
 
@@ -165,8 +163,8 @@ catalogue, no profile, no recorded search, no proposal, no asset named, no termi
 
 | object | why here | why beside these | why this boundary |
 |---|---|---|---|
-| the sub-module | the ML module's own instrument: the stages its menu offers are this module's chain, and the search and the promotion are `ml-*` targets carried by this repository's Makefile and the Orchestration Makefile alike; the catalogue it reads is a store file the feature layer wrote — the first channel of `module_skills/skill_module_separation.md`, a measurement crossing as a file — so nothing of `module_features` is imported | inside `module_ml`, whose `config.py` owns every descriptor it reads and the search's frozen geometry; the shape every module's `sub_module_terminal/` shares | it imports the standard library and its own package alone (D05): it runs on the host's `python3` with gum and no virtual environment |
+| the sub-module | the ML module's own instrument: the stages its menu offers are this module's chain, and the search and the promotion are `ml-*` targets of the Makefile; the catalogue it reads is a store file the feature layer wrote — the per-asset contract `AGENTS.md` § Architecture shape names, crossing as a file and not as an import — so nothing of `module_features` is imported | inside `module_ml`, whose `config.py` owns every descriptor it reads and the search's frozen geometry; the shape every module's `sub_module_terminal/` shares | it imports the standard library and its own package alone (D19): it runs on the host's `python3` with gum and no virtual environment |
 | `terminal.py` | the opening screen and the nine actions, what each screen holds | it imports `config.py` and `tui.py`, and `module_ml/config.py` as `ml_config` for the descriptors, `START_BY_COORDINATE_DEFAULT`, `COORDINATE_SEARCH_ROUND_LOOPS` and `is_artifact_set_complete()` | it writes the one profile file and starts the make targets — `ml-<stage>`, the session form's two, the promotion; `-h`, `--help` and `--tickers` are its only arguments |
 | `config.py` | the one surface of configuration | `terminal.py` imports it; `tui.py` imports it for plain output and the filter's placeholder alone | it carries what `module_ml/config.py` lacks and `module_ml/dataset.py` cannot lend: `dataset.py` imports duckdb and numpy, which the host's `python3` does not hold, so `load_json()`, `load_jsonl()` and `write_json()` stand here twice by extraction; `MODULE_TOKEN`, `STAGES`, `WRITES_BY_STAGE`, the three targets and the grid preset live here, so another grid is an edit of the profile and not of the code; no store read and no descriptor — those are imported |
-| `tui.py` | how a screen is drawn and an answer taken | one file with every other terminal's and the crawler's, seven times by extraction and registered | it writes to the terminal and no file; it knows none of this sub-module's objects |
-| the duplication | no module imports another (D05), and a package for what the terminals share would be the `common` the contract refuses | — | paid on purpose: one `tui.py`, `OUTPUT_PLAIN`, the screen helpers and `_make()`, registered in `module_skills/glossary.md` § Twice by extraction and changed on every side at once; and the readers and the writer of JSON its `config.py` carries — `load_json()`, `load_jsonl()` and the canonical form of `write_json()` — each with its own row there |
+| `tui.py` | how a screen is drawn and an answer taken | one file with every other terminal's and the crawler's, five times by extraction and registered | it writes to the terminal and no file; it knows none of this sub-module's objects |
+| the duplication | no module imports another (D02), and a package for what the terminals share would be the `common` the contract refuses | — | paid on purpose: one `tui.py`, `OUTPUT_PLAIN`, the screen helpers and `_make()`, registered in `module_skills/glossary.md` § Twice by extraction and changed on every side at once; and the readers and the writer of JSON its `config.py` carries — `load_json()`, `load_jsonl()` and the canonical form of `write_json()` — each with its own row there |

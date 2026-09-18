@@ -4,8 +4,8 @@ lines on this screen as they come; then it closes. Drawn by tui.py to module_ski
 
 It computes nothing: it counts the Lean day ZIPs each venue's leaf holds and reads whether the asset's database
 stands, through this module's own `config.py` and `lean.py`, and starts every stage through `make` — the Makefile is
-where a container and the order of the chain are named. At the workspace `data-download` and `data-status` run the
-whole basket whatever ASSET says; in this repository every stage runs the asset named.
+where a container and the order of the chain are named. `data-download` and `data-status` run the whole basket
+whatever ASSET says; `data-ingest` runs the asset named.
 
 keys:
   Enter takes the option under the cursor; Esc cancels and writes nothing (exit 0); Ctrl-C ends the TUI (exit 130),
@@ -19,7 +19,7 @@ exit codes:
   argument; 130 Ctrl-C
 
 examples:
-  make data-terminal                the TUI over the basket (at the workspace) or over ASSET (in this repository)
+  make data-terminal                the TUI over the basket
   make data-terminal ASSET=BTC      the TUI over one asset
   NO_COLOR=1 make data-terminal     the TUI in plain output
 """

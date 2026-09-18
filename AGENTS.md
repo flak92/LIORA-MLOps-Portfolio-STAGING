@@ -238,7 +238,7 @@ and built nowhere.
   answers with one row each, and says so. The rows are
   `module_skills/skill_pre_aws_solution.md` § The mapping table. The canon has
   no orientation of its own: its sub-module argues its objects in
-  `module_skills/skill_scalability_crawler.md` § Design rationale, and its
+  `module_skills/sub_module_scalability_crawler/skill_scalability_crawler.md` § Design rationale, and its
   documents are the rows of the index.
 - **Names carry the responsibility.** A name says what the object is, what it
   does and where it belongs — a service by its runtime role, a store by what it
@@ -265,7 +265,7 @@ the edge of a local rule, the one seat paragraph of
 `module_skills/skill_asset_containers.md`, `module_skills/skill_determinism.md`
 (its last bullet, the skill having no headings),
 `module_data/skills/skill_candle_canonicalisation.md` § 15 and
-`module_monitoring/skills/skill_devops_panel.md`, each naming the primitive in
+`module_monitoring/sub_module_devops/skill_devops_panel.md`, each naming the primitive in
 the table's words and citing the skill for the rest. Never in a make target, a
 compose service, an environment variable, a payload key, a code comment, an
 identifier, or a tracked path but the `pre_aws` stem. The non-goals, the twelve
@@ -525,7 +525,7 @@ is wrong.
 | D16 | the fan-out and the detached search run through `docker compose run --rm`; nothing is `exec`'d into a resident |
 | D17 | `skills_status.json` is written by `module_skills.sub_module_scalability_crawler.status` alone, a function of the skill matrix's paths and the reports; the reports by `module_skills.sub_module_scalability_crawler.crawl` alone, and `to_crawl.md` — its entries and its marks — by a hand, in the file or through that module's TUI, its header read off the tree |
 | D18 | the crawler gates nothing: no target of the chain, no service and no merge depends on it; it writes only its skill matrix, its reports and its snapshot, and a hand alone runs it |
-| D19 | the coordinate search terminal imports the standard library and its own package alone, and starts every stage through `make`: its import lines name no module of this tree but `from . import`, and no third-party package — `module_features/config.py` imports numpy at its thirteenth line and is never imported here — and neither `tmux` nor `docker` appears anywhere in it. It writes the one file `<TICKER>_coordinate_search_profile.json`, a hand alone runs it, one action per run, and it gates nothing |
+| D19 | a module's terminal imports the standard library and its own package alone, and starts every stage through `make`: its import lines name no module of this tree but `from . import` and `from .. import`, and no third-party package — `module_features/config.py` imports numpy at its thirteenth line and is never imported here, so the features terminal carries registered copies of the descriptors it reads — and no terminal runs `tmux` or `docker`, the one tmux word in any of them being a make target's name. The one file a terminal writes is `<TICKER>_coordinate_search_profile.json`, the ML terminal's draft; a hand alone runs a terminal, one action per run, and none of them gates anything |
 
 ## Skills absent here, described
 

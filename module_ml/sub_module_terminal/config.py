@@ -27,7 +27,7 @@ WRITES_BY_STAGE = {
     "status": "ml_status.json in the status store, and every complete asset's <TICKER>_README.md",
 }
 # the make targets the coordinate-search actions start, and nothing else: tmux and docker compose are the Makefile's
-SEARCH_DETACHED_TARGET = "tmux-ml-coordinate-search"   # the workspace's detached twin, alive after this terminal closes
+SEARCH_DETACHED_TARGET = "tmux-ml-coordinate-search"   # the Makefile's detached twin, alive after this terminal closes
 SEARCH_TARGET = "ml-coordinate-search"                  # the module's own stage, in the foreground of this screen
 PROMOTE_TARGET = "ml-coordinate-search-promote"
 # the grid each coordinate is searched over — the one preset the terminal offers; another grid is a hand's edit of the

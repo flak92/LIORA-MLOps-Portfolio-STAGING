@@ -4,15 +4,15 @@ The engine's views over the one docker socket: every container the daemon report
 networks, the volumes and the bind mounts; the image this container runs; a bounded tail of the daemon's events —
 and the three verbs, start, stop and restart, offered for this project's containers alone. Its rules are
 `skill_devops_panel.md`, beside this file; the topology it is one service of is
-`../skill_asset_containers.md` § The topology.
+`../../module_skills/skill_asset_containers.md` § The topology.
 
 ```bash
-make monitoring-devops    # the panel's server alone, on the host, over /var/run/docker.sock — it publishes nothing a reader reaches but through the dashboard's proxy
+make on                   # the panel up beside the dashboard: the devops resident, the one container that holds /var/run/docker.sock — it publishes no port, and a reader reaches it only through the dashboard's proxy
 ```
 
-At the workspace the panel is the `devops` resident of `make on` — the one container that holds the socket, its API
-proxied by the dashboard under `/devops/*`. Its page is a static file below the dashboard's web root, opened by the
-**DevOps** control of the status page; only its API is a route.
+The panel is the `devops` resident of `make on` — the one container that holds the socket, its API proxied by the
+dashboard under `/devops/*`. Its page is a static file below the dashboard's web root, opened by the **DevOps**
+control of the status page; only its API is a route.
 
 | the file | what it is |
 |---|---|

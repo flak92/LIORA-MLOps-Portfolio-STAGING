@@ -4,8 +4,8 @@ off — started through `make`, its lines on this screen as they come; then it c
 module_skills/skill_tui_designer.md.
 
 It computes nothing and writes nothing: the snapshots and the run records it reads through this module's own
-`config.py`, and each action is `make on` or `make off` — the Makefile is where a container, and at the workspace the
-two residents, are named.
+`config.py`, and each action is `make on` or `make off` — the Makefile is where the image, the two residents and
+every container of this project are named.
 
 keys:
   Enter takes the option under the cursor; Esc cancels and writes nothing (exit 0); Ctrl-C ends the TUI (exit 130),
@@ -19,7 +19,7 @@ exit codes:
   130 Ctrl-C
 
 examples:
-  make monitoring-terminal                                    the TUI over the stores one level up (the workspace's, or from this repository)
+  make monitoring-terminal                                    the TUI over the stores the Makefile exports
   STORE_STATUS_DIR=/path/to/store_status make monitoring-terminal   the TUI over another status store
   NO_COLOR=1 make monitoring-terminal                         the TUI in plain output
 """
@@ -86,7 +86,7 @@ def _run_rows() -> list[dict]:
 
 def _write_stage(stage: str) -> int:
     """One position of the presentation switch, started through make after the plan and its gate — the target the
-    position's own word, a lifecycle target being bare in both Makefiles."""
+    position's own word, a lifecycle target going bare (AGENTS.md § Canonical vocabulary)."""
     target = stage
     tui.gum_table(("parameter", "value"), [{"parameter": "action", "value": stage},
                                            {"parameter": "writes", "value": config.WRITES_BY_STAGE[stage]}])

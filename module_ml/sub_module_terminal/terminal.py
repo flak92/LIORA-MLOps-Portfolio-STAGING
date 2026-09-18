@@ -20,7 +20,7 @@ exit codes:
   argument; 130 Ctrl-C
 
 examples:
-  make ml-terminal                  the TUI over the basket (at the workspace) or over ASSET (in this repository)
+  make ml-terminal                  the TUI over the basket
   make ml-terminal ASSET=BTC        the TUI over one asset
   NO_COLOR=1 make ml-terminal       the TUI in plain output
 """
@@ -410,8 +410,7 @@ def _recorded_search_tables(ticker: str, profile: dict | None, search: dict | No
 
 
 def _write_promoted_proposal(ticker: str, profile: dict | None, search: dict | None) -> int:
-    """Promote one proposal into the asset's own state, through the Makefile — which, at the workspace, reruns the
-    chain after it."""
+    """Promote one proposal into the asset's own state, through the Makefile — which reruns the chain after it."""
     if search is None or not search["proposals"]:
         return _failure_exit_code(f"{ticker} has no proposal to promote",
                                   ml_config.coordinate_search_json(ticker).name,
@@ -448,7 +447,7 @@ def _write_promoted_proposal(ticker: str, profile: dict | None, search: dict | N
                                   shlex.join(("make", config.PROMOTE_TARGET, f"ASSET={ticker}", f"PROPOSAL={answer}")),
                                   f"make exited with {code}", "read make's lines above")
     tui.gum_style([f"{tui.state_label('DONE')}  promoted proposal {answer} of {ticker}; make's lines above are the "
-                   f"chain's where the Makefile reruns it"], "DONE")
+                   f"promotion's and the chain's, which the Makefile reruns after it"], "DONE")
     return 0
 
 

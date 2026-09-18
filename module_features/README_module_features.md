@@ -35,8 +35,14 @@ and each asset's row counts, the one run-state fact this module has.
 
 ## Stages
 
-Run in order; `features-all` is the Orchestration Makefile's chain, each stage in a one-off container of the `features` runner, and a single stage is its own `features-<stage>` target — in the same runner there, in this module's venv here with `ASSET=<TICKER>` — or `python -m module_features.<stage> --tickers <TICKER>` run by hand in a shell that exports the two `STORE_*_DIR` it reads (`module_skills/glossary.md` § Stores). `make features-terminal ASSET=<TICKER>` opens the terminal over the same three stages (§ Its sub-module). The two per-asset stages fan out
-one process per asset with its threads pinned to one; `status` runs once over the
+Run in order; `features-all` is the Makefile's chain, each stage in a one-off
+container of the `features` runner, and a single stage is its own
+`features-<stage>` target, `ASSET=<TICKER>` narrowing a per-asset stage to that
+asset — or `python -m module_features.<stage> --tickers <TICKER>` run by hand in
+a shell that exports the two `STORE_*_DIR` it reads (`module_skills/glossary.md`
+§ Stores). `make features-terminal ASSET=<TICKER>` opens the terminal over the
+same three stages (§ Its sub-module). The two per-asset stages fan out one
+process per asset with its threads pinned to one; `status` runs once over the
 assets the launcher names.
 
 | stage | target | writes |
@@ -74,7 +80,7 @@ addition touches.
 | an indicator | its kernel and one record in `INDICATORS` (`indicators.py`) | nothing, until a catalogue record names it | the existing parquets byte-identical |
 | a derived series | one entry in `SERIES_KERNELS` (`catalogue.py`) | nothing, until a term names it | the existing parquets byte-identical |
 | an operator or a normaliser | one record in `OPERATORS` or `NORMALISERS`, beside its kernel (`catalogue.py`) | nothing, until a catalogue record names it | the existing parquets byte-identical |
-| a feature definition | one record in `FEATURE_CATALOGUE` (`config.py`): its `terms`, its `operators` (one fewer than its terms) and any `normaliser`, its `range`, the `timeframes` it is offered on, and `definition_in_default_set: False` — the field table is `skills/skill_feature_taxonomy.md` § The catalogue and the feature set; then its equation in `skills/methodology_features.md` § The catalogue, and the counts in `skills/skill_feature_taxonomy.md` and in the Orchestration `README.md` § ML research layer | every parquet it is offered on gains a column, `<TICKER>_catalogue.json` a column name, the catalogue frame a row, and the coordinate search's `inputs` change | the existing columns byte-identical; `ml-labels` … `ml-strategy` untouched and `features-status` republishing the catalogue; the next search starts from trial 1, and a model sees the column only after a promotion; the nesting of `skills/skill_feature_taxonomy.md` § Scope nesting still holds — recompute the level bounds and update its *Today* sentence in the same commit |
+| a feature definition | one record in `FEATURE_CATALOGUE` (`config.py`): its `terms`, its `operators` (one fewer than its terms) and any `normaliser`, its `range`, the `timeframes` it is offered on, and `definition_in_default_set: False` — the field table is `skills/skill_feature_taxonomy.md` § The catalogue and the feature set; then its equation in `skills/methodology_features.md` § The catalogue, and the counts wherever they are quoted — `skills/skill_feature_taxonomy.md` § The catalogue and the feature set, the lede of `skills/methodology_features.md` § The catalogue, and `README.md` § ML research layer | every parquet it is offered on gains a column, `<TICKER>_catalogue.json` a column name, the catalogue frame a row, and the coordinate search's `inputs` change | the existing columns byte-identical; `ml-labels` … `ml-strategy` untouched and `features-status` republishing the catalogue; the next search starts from trial 1, and a model sees the column only after a promotion; the nesting of `skills/skill_feature_taxonomy.md` § Scope nesting still holds — recompute the level bounds and update its *Today* sentence in the same commit |
 | a second parameter for an indicator | the record and the name grammar, in one commit (`skills/skill_feature_taxonomy.md` § Series and indicators) | the derived names of existing terms do not change | the existing parquets byte-identical |
 
 `definition_in_default_set: True` is a different move: it puts the column into
@@ -82,9 +88,9 @@ every asset's X, so the ML chain reruns and today's numbers move. The default
 set is the frozen experiment's; a set chosen for one asset is the feature-set
 search's and a hand's promotion
 (`module_ml/skills/methodology_ml.md` § 4). A new asset is not an extension
-of this module at all: it is a ticker in `TICKERS` of the Makefile
-(the Orchestration `README.md` § The basket); nothing changes here, and both stages follow it
-without an edit.
+of this module at all: it is one more token in `TICKERS` of the Makefile
+(`README.md` § The basket); nothing changes here, and both per-asset stages
+follow it without an edit.
 
 ## Design rationale
 

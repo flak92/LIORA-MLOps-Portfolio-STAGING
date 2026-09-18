@@ -19,7 +19,7 @@ exit codes:
   130 Ctrl-C
 
 examples:
-  make features-terminal                  the TUI over the basket (at the workspace) or over ASSET (in this repository)
+  make features-terminal                  the TUI over the basket
   make features-terminal ASSET=BTC        the TUI over one asset
   NO_COLOR=1 make features-terminal       the TUI in plain output
 """

@@ -23,7 +23,7 @@ that publishes no port. What it does not contain is **reach** — the dashboard
 proxies `/devops/*` to it, so anything that can reach the dashboard's loopback
 origin can reach the Engine through it, a browser tab on another site included.
 Stated, not mitigated. The panel's own contract is
-`module_monitoring/skills/skill_devops_panel.md`.
+`module_monitoring/sub_module_devops/skill_devops_panel.md`.
 
 ## The topology
 

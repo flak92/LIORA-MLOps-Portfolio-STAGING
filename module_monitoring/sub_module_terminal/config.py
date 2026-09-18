@@ -14,14 +14,14 @@ import os
 import sys
 from pathlib import Path
 
-MODULE_TOKEN = "monitoring"   # the module token of this module's own targets: monitoring-<role>, monitoring-terminal
+MODULE_TOKEN = "monitoring"   # the module token of this module's own target, monitoring-terminal; the switch goes bare
 # the presentation switch, in the Makefile's order — each an option of the menu; a lifecycle pair, so its two targets
 # go bare, `on` and `off` (AGENTS.md § Canonical vocabulary, the Makefile-targets row)
 STAGES = ("on", "off")
 # what each position writes, as the plan says it before the gate
 WRITES_BY_STAGE = {
-    "on": "nothing — a container of this module's image, its address printed",
-    "off": "nothing — that container removed",
+    "on": "nothing — the dashboard and the DevOps panel up, the page's address printed",
+    "off": "nothing — every container of this project removed",
 }
 # the four snapshots the dashboard reads, by file name in the status store (module_skills/glossary.md § Stores)
 SNAPSHOT_FILE_NAMES = ("data_status.json", "features_status.json", "ml_status.json", "skills_status.json")

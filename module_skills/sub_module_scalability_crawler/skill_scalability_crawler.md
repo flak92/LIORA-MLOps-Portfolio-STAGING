@@ -40,8 +40,8 @@ destination, and a report says where one file stands from it.
 - **The vendors** are `vendors_for_crawling.toml`, kept by hand (§ Vendors).
 - **The message** for a file is the mission, then `# Rules` with every document
   `SENT_DOCUMENT_PATHS` finds — `AGENTS.md`, `module_skills/glossary.md` and the
-  orientation of the module the file's first path segment names — a root file has
-  none, and a file of the canon's own repository takes `module_skills/README_module_skills.md` — then `# Skills marked for this
+  orientation of the module the file's first path segment names, of which a root
+  file, or one under `module_skills/`, has none — then `# Skills marked for this
   file` with each skill its row marks, in the columns' order, each under its path,
   then `# Skills not marked for this file`, every other skill by its path alone,
   then `# File under review: <path>` and the file, each line after its number. It
@@ -235,9 +235,9 @@ table and adds each file's age against the browser's clock.
 ## Design rationale
 
 Why each object sits where it does — the answers of
-`skill_self_explaining_naming.md` § The naming review; the module argues its
-objects in `README_module_skills.md` § Design rationale, and its sub-module argues
-its own files here (`AGENTS.md` § Pre-AWS architectural direction).
+`skill_self_explaining_naming.md` § The naming review; the canon has no
+orientation of its own, so its sub-module argues here (`AGENTS.md` § Pre-AWS
+architectural direction).
 
 | object | why here | why beside these | why this boundary | answers to |
 |---|---|---|---|---|

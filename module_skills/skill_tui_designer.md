@@ -1,14 +1,13 @@
 # Skill: a text-based user interface (TUI) — tables, lists and forms in gum
 
-An owner of a TUI — a module's `sub_module_terminal/`, the workspace's `workspace_terminal/`, or a
-sub-module that opens a TUI — draws every screen in gum, the one terminal instrument the host
-admits (`AGENTS.md` § Values, *Minimum requirements*). Python decides what a screen holds — its
-rows, its columns, its words — and gum draws it and takes the answer. The rule is neuro-optical
-consistency (`AGENTS.md` § Architecture shape): a screen is read by eye before it is understood, so
-one concept always takes one form, a change of form means a change of meaning, and the decision and
-the result stand where the eye lands. What each screen holds and what each answer writes is the
-owner's own skill, beside its code — `skill_<domain>_terminal.md` for a module's terminal,
-`skill_workspace_terminal.md` for the workspace's,
+An owner of a TUI — a module's `sub_module_terminal/`, or a sub-module that opens a TUI — draws
+every screen in gum, the one terminal instrument the host admits (`AGENTS.md` § Values, *Minimum
+requirements*). Python decides what a screen holds — its rows, its columns, its words — and gum
+draws it and takes the answer. The rule is neuro-optical consistency (`AGENTS.md` § Architecture
+shape): a screen is read by eye before it is understood, so one concept always takes one form, a
+change of form means a change of meaning, and the decision and the result stand where the eye
+lands. What each screen holds and what each answer writes is the owner's own skill, beside its
+code — `skill_<domain>_terminal.md` for a module's terminal,
 `module_skills/sub_module_scalability_crawler/skill_scalability_crawler.md` § The TUI for the
 crawler; how a screen is drawn is this skill. *The repository shows the destination, not the
 road*: nothing measures, checks or schedules a screen — a hand runs it.
@@ -16,7 +15,7 @@ road*: nothing measures, checks or schedules a screen — a hand runs it.
 ## The instruments
 
 One role, one instrument; the one module that speaks them is the owner's `tui.py`, one file
-seven times by extraction (`glossary.md` § Twice by extraction).
+five times by extraction (`glossary.md` § Twice by extraction).
 
 | role | instrument | draws | never |
 |---|---|---|---|

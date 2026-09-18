@@ -283,7 +283,7 @@ names are `liora-…` on every host — two checkouts of LIORA share the name, s
 runs at a time unless `COMPOSE_PROJECT_NAME` overrides it (`glossary.md` § Asset
 containers) — and the host port is measured, never fixed, because another project
 on the host may hold 8900 (`skill_asset_containers.md` § The topology; the panel
-acts on its own project alone, `module_monitoring/skills/skill_devops_panel.md`
+acts on its own project alone, `module_monitoring/sub_module_devops/skill_devops_panel.md`
 § The guard);
 no code depends on a container name — code knows `--tickers`, and every address is
 built once, in `module_monitoring/config.py`.
